@@ -70,11 +70,11 @@ export class System {
         this.fs.mkdir('/sys');
         this.fs.mkdir('/tmp');
         this.fs.mkdir('/usr');
-        this.fs.mkdir('/usr/bin');
+        this.fs.link('/usr/bin', this.fs.get('/bin'));
         this.fs.mkdir('/usr/include');
         this.fs.mkdir('/usr/lib');
         this.fs.mkdir('/usr/local');
-        this.fs.symlink('/usr/bin', '/usr/sbin');
+        this.fs.link('/usr/sbin', this.fs.get('/bin'));
         this.fs.mkdir('/usr/share');
         this.fs.mkdir('/usr/src');
         this.fs.mkdir('/var');
@@ -151,7 +151,7 @@ export class UserSession implements UserData {
             stdin: '',
             stdout: '',
             stderr: '',
-            exitCode: 0,
+            exitCode: undefined,
         };
         this.system.processes.push(process);
         return process;

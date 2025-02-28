@@ -1,5 +1,5 @@
 
-import {type FileSystem} from './src/fs';
+import {type FileSystem} from './fs';
 
 
 export interface UserData {

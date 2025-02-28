@@ -110,11 +110,16 @@ function tokenize(command: string): Word[] {
         } else {
             buffer += char;
         }
+        i++;
     }
+    words.push({quoted: quoted, text: buffer});
     return words;
 }
 
 function resolveAliases(words: Word[], process: Process, session: BashUserSession): Word[] {
+    if (words.length === 0) {
+        return words;
+    }
     let replaced = session.aliases.get(words[0].text);
     if (replaced !== undefined) {
         words[0].text = replaced;
@@ -334,12 +339,12 @@ export default function plugin<T extends System>(this: T): T & BashSystem {
             (session as BashUserSession).run(process);
         }
     }});
-    this.fs.symlink('/bin/sh', '/bin/bash');
-    let oldLogin = this.login;
+    this.fs.link('/bin/sh', this.fs.get('/bin/bash'));
+    let oldLogin = this.login.bind(this);
     return Object.assign(this, {
         login(user: string | number): UserSession & BashUserSession {
             let out = oldLogin(user);
-            let oldCreateProcess = out.createProcess;
+            let oldCreateProcess = out.createProcess.bind(out);
             return Object.assign(out, {
                 run: run,
                 createProcess(...argv: string[]): BashProcess {

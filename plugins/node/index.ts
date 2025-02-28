@@ -116,7 +116,7 @@ function require(this: NodeSystem, process: Process, module: string): unknown {
 
 
 function run(system: NodeSystem, process: Process, code: string, filename: string) {
-    let type: string;
+    let type: string | undefined = undefined;
     for (let ext in system.node.fileExtensions) {
         if (filename.endsWith(ext)) {
             type = system.node.fileExtensions[ext];

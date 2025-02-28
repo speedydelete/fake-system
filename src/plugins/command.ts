@@ -1,7 +1,7 @@
 
 import {DeviceExecutor} from '../fs';
 import {System, Process, UserSession} from '../index';
-import {BashUserSession} from './bash';
+import {BashUserSession, BashProcess} from './bash';
 
 
 export type RequiredArgument<Name extends string = string> = `${Name}`;
@@ -86,7 +86,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
 
     func(func: CommandFunction<Args, Opts>): DeviceExecutor {
         return (process: Process, session: UserSession) =>  {
-            let parsed = this.parse(process.argv);
+            let parsed = this.parse((process as BashProcess).argv);
             if (typeof parsed === 'string') {
                 process.stdout += parsed + '\n';
             } else {
@@ -209,9 +209,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 posArgs.push(arg);
             }
         }
-        for (let i = 0; i < posArgs.length; i++) {
-            // todo: write positional args parser
-        }
+
         return out as ParsedArguments<Args, Opts>;
     }
 

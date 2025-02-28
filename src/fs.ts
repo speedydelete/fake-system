@@ -54,8 +54,10 @@ export const S_IXOTH = 0o001;
 export const constants = {F_OK, X_OK, W_OK, R_OK, COPYFILE_EXCL, COPYFILE_FICLONE, COPYFILE_FICLONE_FORCE, O_RDONLY, O_WRONLY, O_RDWR, O_CREAT, O_EXCL, O_NOCTTY, O_TRUNC, O_APPEND, O_DIRECTORY, O_NOATIME, O_NOFOLLOW, O_SYNC, O_DSYNC, O_SYMLINK, O_DIRECT, O_NONBLOCK, UV_FS_O_FILEMAP, S_IMFT, S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFIFO, S_IFLNK, S_IFSOCK, S_IRWXU, S_IRUSR, S_IWUSR, S_IXUSR, S_IRWXG, S_IRGRP, S_IWGRP, S_IXGRP, S_IRWXO, S_IROTH, S_IWOTH, S_IXOTH};
 
 
-export let encode = (new TextEncoder()).encode;
-export let decode = (new TextDecoder()).decode;
+let encoder = new TextEncoder();
+let decoder = new TextDecoder();
+export let encode = encoder.encode.bind(encoder);
+export let decode = decoder.decode.bind(decoder);
 
 
 export type BufferEncoding = "ascii" | "utf8" | "utf-8" | "utf16le" | "ucs2" | "ucs-2" | "base64" | "latin1" | "binary" | "hex";
@@ -80,13 +82,13 @@ export function normalize(path: string): string {
             out.push(segment);
         }
     }
-    return out.join('/');
+    return (path.startsWith('/') ? '/' : '') + out.join('/');
 }
 
 export function resolve(cwd: string, ...paths: string[]): string {
     let out = '';
     for (let i = paths.length - 1; i >= 0; i--) {
-        out += paths[i];
+        out += '/' + paths[i];
         if (out.startsWith('/')) {
             return out;
         }
@@ -795,7 +797,7 @@ export class Directory extends FileObject {
         }
         let parsed = parsePathArg(path, this.absPath);
         if (!parsed.startsWith(this.absPath)) {
-            this.rootDir.link(parsed.slice(1), file);
+            this.rootDir.link(parsed, file);
         } else {
             let relPath = parsed.slice(this.absPath.length);
             if (relPath.includes('/')) {
@@ -803,7 +805,7 @@ export class Directory extends FileObject {
                 let dir = this.getDir(parts.slice(0, -1).join('/'));
                 dir.files.set(parts[parts.length - 1], file);
             } else {
-                this.files.set(relPath, file);
+                this.files.set(relPath.slice(1), file);
             }
         }
     }
@@ -839,7 +841,7 @@ export class Directory extends FileObject {
         } else {
             let file = new Directory(this.rootDir, new Map(), {uid: this.uid, gid: this.gid, mode: parseModeArg(mode)});
             file.absPath = join(this.absPath, parsed) + '/';
-            this.files.set(parsed, file);
+            this.files.set(parsed.slice(1), file);
             return file;
         }
     }
