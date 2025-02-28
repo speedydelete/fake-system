@@ -1,0 +1,362 @@
+
+import {normalize, resolve, RegularFile, Device} from '../fs';
+import type {System, UserSession, Process} from '../index';
+
+
+export interface BashProcess extends Process {
+    env: {[key: string]: string};
+    argv: string[];
+}
+
+export interface BashUserSession extends UserSession {
+    createProcess(...argv: string[]): BashProcess;
+    run(process: Process): void;
+    runBash(code: string): BashProcess;
+    aliases: Map<string, string>;
+    prevDir: string;
+}
+
+export interface BashSystem extends System {
+    login(user: string | number): UserSession & BashUserSession;
+}
+
+const DEFAULT_ENV = {
+    PATH: '/usr/bin:/usr/local/bin:/bin',
+    SHLVL: '1',
+    SHELL: '/bin/bash',
+    TERM: 'none',
+    PS1: '',
+    PS2: '> ',
+    HISTFILE: '~/.bash_history',
+    EDITOR: 'vim',
+    VISUAL: 'vim',
+    LANG: 'en_US.utf8',
+    HOSTNAME: 'fake-node',
+    TMPDIR: '/tmp',
+};
+
+
+const OCTAL_REGEX = /[0-7]{1,3}/;
+const HEX_REGEX = /[0-9A-Fa-f]{1,2}/;
+const UNICODE_REGEX = /[0-9A-Fa-f]{1,4}/;
+const LONG_UNICODE_REGEX = /[0-9A-Fa-f]{1,8}/;
+
+type Word = {quoted: boolean, text: string};
+
+function tokenize(command: string): Word[] {
+    let inDoubleQuotes = false;
+    let quoted = false;
+    let words: Word[] = [];
+    let buffer = '';
+    let i = 0;
+    if (command.includes('#')) {
+        command = command.slice(0, command.indexOf('#'));
+    }
+    while (i < command.length) {
+        let char = command[i];
+        if (char === "'" && !inDoubleQuotes) {
+            i++;
+            while ((char = command[i]) !== "'") {
+                i++;
+                buffer += char;
+            }
+            quoted = true;
+        } else if (char === '\\') {
+            i++;
+            char = command[i];
+            if (char === 'a') {
+                buffer += '\a';
+            } else if (char === 'b') {
+                buffer += '\b';
+            } else if (char === 'e' || char === 'E') {
+                buffer += '\x1b';
+            } else if (char === 'f') {
+                buffer += '\f';
+            } else if (char === 'n') {
+                buffer += '\n';
+            } else if (char === 'r') {
+                buffer += '\t';
+            } else if (char === 'v') {
+                buffer += '\v';
+            } else if (char === 'h') {
+                i++;
+                let match = (command.slice(i).match(HEX_REGEX) as RegExpMatchArray)[0];
+                buffer += String.fromCharCode(parseInt(match, 8));
+                i += match.length;
+            } else if (char === '0' || char === '1' || char === '2' || char === '3' || char === '4' || char === '5' || char === '6' || char === '7') {
+                let match = (command.slice(i).match(OCTAL_REGEX) as RegExpMatchArray)[0];
+                buffer += String.fromCharCode(parseInt(match, 8));
+                i += match.length;
+            } else if (char === 'u') {
+                let match = (command.slice(i).match(UNICODE_REGEX) as RegExpMatchArray)[0];
+                buffer += String.fromCharCode(parseInt(match, 8));
+                i += match.length;
+            } else if (char === 'U') {
+                let match = (command.slice(i).match(LONG_UNICODE_REGEX) as RegExpMatchArray)[0];
+                buffer += String.fromCharCode(parseInt(match, 8));
+                i += match.length;
+            } else if (char === 'c') {
+                buffer += String.fromCharCode(char.charCodeAt(0) - 64);
+            } else {
+                buffer += char;
+            }
+        } else if (char === '"') {
+            inDoubleQuotes = !inDoubleQuotes;
+            quoted = true;
+        } else if (char === ' ' && !inDoubleQuotes) {
+            words.push({quoted: quoted, text: buffer});
+            quoted = false;
+            buffer = '';
+        } else {
+            buffer += char;
+        }
+    }
+    return words;
+}
+
+function resolveAliases(words: Word[], process: Process, session: BashUserSession): Word[] {
+    let replaced = session.aliases.get(words[0].text);
+    if (replaced !== undefined) {
+        words[0].text = replaced;
+    }
+    return words;
+}
+
+type Command = {words: Word[], async: boolean};
+
+function extractCommandsPipeline(words: Word[]): Command[][] {
+    let pipeline: Word[][] = [];
+    let buffer: Word[] = [];
+    for (let word of words) {
+        if (word.text === '|' && !word.quoted) {
+            pipeline.push(buffer);
+        } else {
+            buffer.push(word);
+        }
+    }
+    let commandsPipeline: Command[][] = [];
+    for (let words of pipeline) {
+        let command: Word[] = [];
+        let commands: Command[] = [];
+        for (let word of words) {
+            if (word.text === ';' && !word.quoted) {
+                commands.push({words: command, async: false});
+                command = [];
+            } else if (word.text === '&' && !word.quoted) {
+                commands.push({words: command, async: true});
+            } else {
+                command.push(word);
+            }
+        }
+        commandsPipeline.push(commands);
+    }
+    return commandsPipeline;
+}
+
+function substitutions(process: Process, words: Word[]): string[] {
+    let argv = [];
+    for (let word of words) {
+        if (!word.quoted && !word.text.startsWith('/') && !word.text.startsWith('.')) {
+            word.text = normalize(resolve(process.cwd, word.text));
+        }
+        argv.push(word.text);
+    }
+    return argv;
+}
+
+
+export let defaultCommands: {[key: string]: (process: BashProcess, session: BashUserSession) => void} = {
+
+    ':'() {},
+
+    '.'(process, session) {
+        let file = process.argv[1];
+        process.argv = process.argv.slice(2);
+        bash(session.system.fs.read(file), process, session);
+    },
+
+    alias(process, session) {
+        for (let arg of process.argv) {
+            if (arg === '-p') {
+                continue;
+            } else {
+                if (arg.includes('=')) {
+                    let [name, value] = arg.split('=');
+                    session.aliases.set(name, value);
+                } else {
+                    process.stdout += `${arg}=${session.aliases.get(arg)}\n`;
+                }
+            }
+        }
+    },
+
+    builtin(process, session) {
+        return defaultCommands[process.argv[0]](session.createProcess(...process.argv.slice(1)), session);
+    },
+
+    cd(process, session) {
+        let arg = process.argv[0];
+        let cwd: string;
+        if (arg === undefined) {
+            cwd = session.homedir;
+        } else if (arg.startsWith('~')) {
+            if (arg.length === 1) {
+                cwd = session.homedir;
+            } else {
+                cwd = session.system.um.getUserData(arg.slice(1)).homedir;
+            }
+        } else if (arg === '-') {
+            cwd = session.prevDir;
+        } else {
+            cwd = arg;
+        }
+        session.prevDir = session.cwd;
+        session.cwd = cwd;
+    },
+
+    eval(process, session) {
+        let command = process.argv.slice(1).join(' ');
+        process.argv = [];
+        bash(command, process, session);
+    },
+
+    exit(process) {
+        process.exitCode = process.argv[1] ? parseInt(process.argv[1]) : 0;
+    },
+
+    pwd(process) {
+        process.stdout += process.cwd + '\n';
+    },
+
+    source(process, session) {
+        this['.'](process, session);
+    },
+
+    test(process, session) {
+        // todo: make this
+    },
+
+    unalias(process, session) {
+        for (let arg of process.argv) {
+            if (arg === '-a') {
+                session.aliases = new Map();
+                return;
+            } else {
+                session.aliases.delete(arg);
+            }
+        }
+    },
+
+    '['(process, session) {
+        if (process.argv[process.argv.length - 1] !== ']') {
+            process.stderr += '[: no matching ]\n';
+            process.exitCode = -1;
+        } else {
+            this.test(process, session);
+        }
+    }
+
+};
+
+
+function bash(command: string, process: BashProcess, session: BashUserSession): void {
+    let words = resolveAliases(tokenize(command), process, session);
+    if (words[0].text in defaultCommands) {
+        defaultCommands[words[0].text](process, session);
+        process.exitCode ??= 0;
+    } else {
+        process.argv = substitutions(process, words);
+    }
+    // let commandsPipeline = extractCommandsPipeline(words);
+    // for (let commands of commandsPipeline) {
+    //     main: for (let command of commands) {
+    //         let simpleCommands: Command[] = [];
+    //         let buffer: Word[] = [];
+    //         let exitCode0Fail = false;
+    //         for (let word of command.words) {
+    //             if (word.text === '&&' && !word.quoted) {
+    //                 let exitCode = runSimpleCommand(system, session, process, buffer);
+    //                 if (exitCode === 0) {
+    //                     continue main;
+    //                 }
+    //                 buffer = [];
+    //             } else if (word.text === '||' && !word.quoted) {
+    //                 let exitCode = runSimpleCommand(system, session, process, buffer);
+    //                 if (exitCode === 1) {
+    //                     continue main;
+    //                 } else {
+    //                     exitCode0Fail = true;
+    //                 }
+    //                 buffer = [];
+    //             } else {
+    //                 buffer.push(word);
+    //             }
+    //         }
+    //         let exitCode = runSimpleCommand(system, session, process, buffer);
+    //         if (exitCode === 0) {
+    //             // idk what to do here
+    //         }
+    //     }
+    // }
+}
+
+
+function run(this: BashUserSession, process: BashProcess): void {
+    let file = this.system.fs.get(process.argv[0]);
+    if (file instanceof Device) {
+        file.executor(process, this);
+    } else if (file instanceof RegularFile) {
+        let data = file.read();
+        if (data.startsWith('#!')) {
+            let index = data.indexOf('\n');
+            let shebang = data.slice(2, index);
+            data = data.slice(index);
+            if (shebang.includes(' ')) {
+                let index = shebang.indexOf(' ');
+                process.argv = [shebang.slice(0, index), shebang.slice(index + 1), data].concat(process.argv);
+            } else {
+                process.argv = [shebang, data].concat(process.argv);
+            }
+            this.run(process);
+        } else {
+            throw new Error(`${normalize(resolve(process.argv[0]))} is not executable`);
+        }
+    } else {
+        throw new Error(`${normalize(resolve(process.argv[0]))} is not executable`);
+    }
+}
+
+
+export default function plugin<T extends System>(this: T): T & BashSystem {
+    this.fs.addDevice('/bin/bash', {executor: (process: Process, session: UserSession) => {
+        bash((process as BashProcess).argv.join(' '), process as BashProcess, session as BashUserSession)
+        if (process.exitCode === undefined) {
+            (session as BashUserSession).run(process);
+        }
+    }});
+    this.fs.symlink('/bin/sh', '/bin/bash');
+    let oldLogin = this.login;
+    return Object.assign(this, {
+        login(user: string | number): UserSession & BashUserSession {
+            let out = oldLogin(user);
+            let oldCreateProcess = out.createProcess;
+            return Object.assign(out, {
+                run: run,
+                createProcess(...argv: string[]): BashProcess {
+                    return Object.assign(oldCreateProcess(), {argv, env: DEFAULT_ENV});
+                },
+                runBash(this: BashUserSession, command: string): BashProcess {
+                    let process = this.createProcess();
+                    bash(command, process, this);
+                    if (process.exitCode === undefined) {
+                        this.run(process);
+                    }
+                    return process;
+                },
+                aliases: new Map(),
+                prevDir: out.homedir,
+            });
+        }
+    });
+}
+plugin.id = 'bash';

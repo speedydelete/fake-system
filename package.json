@@ -1,0 +1,44 @@
+{
+  "name": "fake-system",
+  "version": "0.1.0",
+  "description": "A fake subset of Linux that works in the browser",
+  "license": "MIT",
+  "author": "speedydelete",
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./fs": "./lib/fs.js",
+    "./bash_command": "./lib/plugins/command.js"
+  },
+  "types": "lib/index.d.ts",
+  "files": [
+    "/src",
+    "/lib"
+  ],
+  "homepage": "https://github.com/speedydelete/fake-system",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/speedydelete/fake-system.git"
+  },
+  "bugs": {
+    "url": "https://github.com/speedydelete/fake-system/issues"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "punycode": "^2.3.1",
+    "@babel/core": "^7.26.9",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/plugin-transform-react-jsx": "^7.25.9",
+    "@babel/plugin-transform-react-jsx-development": "^7.25.9",
+    "@babel/plugin-transform-typescript": "^7.26.8"
+  },
+  "devDependencies": {
+    "@types/assert": "^1.5.11",
+    "@types/punycode": "^2.1.4",
+    "typescript": "^5.7.3"
+  }
+}

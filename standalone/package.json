@@ -1,0 +1,40 @@
+{
+  "name": "@fake-node/standalone",
+  "version": "0.1.0",
+  "description": "A fake version of Node that works in the browser. This is the standalone version, includable using script tags",
+  "license": "MIT",
+  "author": "speedydelete",
+  "type": "commonjs",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./_fs": "./lib/_fs.js"
+  },
+  "types": "lib/index.d.ts",
+  "files": [
+    "/src",
+    "/lib"
+  ],
+  "homepage": "https://github.com/speedydelete/fake-node",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/speedydelete/fake-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/speedydelete/fake-node/issues"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --mode production",
+    "build-dev": "webpack --mode development"
+  },
+  "dependencies": {
+    "punycode": "^2.3.1"
+  },
+  "devDependencies": {
+    "@types/assert": "^1.5.11",
+    "@types/punycode": "^2.1.4",
+    "typescript": "^5.7.3"
+  }
+}
+  
