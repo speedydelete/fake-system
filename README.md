@@ -1,3 +1,3 @@
-## fake-node
+## fake-system
 
-A version of node that works in the browser.
+A bad version of Linux that works in the browser.
