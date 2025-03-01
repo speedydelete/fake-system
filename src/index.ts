@@ -56,8 +56,8 @@ export class System {
         }});
         this.fs.link('/dev/random', this.fs.get('/dev/urandom'));
         this.fs.mkdir('/etc');
-        this.fs.write('/etc/passwd', 'root::1:1::/root:/bin/bash');
-        this.fs.write('/etc/group', 'root::gid:root');
+        this.fs.write('/etc/passwd', 'root::0:0::/root:/bin/bash');
+        this.fs.write('/etc/group', 'root::0:root');
         this.fs.mkdir('/home');
         this.fs.mkdir('/lib');
         this.fs.mkdir('/media');

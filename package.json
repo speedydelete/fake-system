@@ -1,7 +1,7 @@
 {
   "name": "fake-system",
   "version": "0.1.0",
-  "description": "A fake subset of Linux that works in the browser",
+  "description": "A bad version of Linux that works in the browser",
   "license": "MIT",
   "author": "speedydelete",
   "type": "commonjs",
