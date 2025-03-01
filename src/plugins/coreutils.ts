@@ -1,5 +1,5 @@
 
-import {constants, join, FileObject, RegularFile, Directory, SymbolicLink} from '../fs';
+import {constants, join, FileObject, RegularFile, Directory, SymbolicLink, Device} from '../fs';
 import type {System} from '../index';
 import command from './command';
 
@@ -90,6 +90,48 @@ let ln = command('ln', 'Create a link to TARGET with the name LINK_NAME')
         system.fs.link(args.link_name, system.fs.get(args.target));
     });
 
+
+interface ColorEntry {
+    code: string;
+    description: string;
+}
+
+const DEFAULT_LS_COLORS: {[key: string]: ColorEntry} = {
+    'rs': {code: '00', description: 'Regular file'},
+    'di': {code: '01;34', description: 'Directory'},
+    'ln': {code: '01;36', description: 'Symbolic link'},
+    'pi': {code: '33', description: 'Named pipe'},
+    'so': {code: '01;35', description: 'Socket'},
+    'do': {code: '01;35', description: 'Door'},
+    'bd': {code: '01;33', description: 'Block device'},
+    'cd': {code: '01;33', description: 'Character device'},
+    'or': {code: '40;31;01', description: 'Orphaned symlink'},
+    'mi': {code: '00', description: 'Missing file'},
+    'su': {code: '37;41', description: 'SetUID'},
+    'sg': {code: '30;43', description: 'SetGID'},
+    'ca': {code: '30;41', description: 'File with capability'},
+    'tw': {code: '30;42', description: 'Sticky other writable'},
+    'ow': {code: '34;42', description: 'Other writable'},
+    'st': {code: '37;44', description: 'Sticky'},
+    'ex': {code: '01;32', description: 'Executable'},
+};
+
+function getFileColor(file: FileObject | 'orphan', colors: {[key: string]: ColorEntry}): string {
+    if (file === 'orphan') {
+        return colors['or']?.code || '';
+    } else if (file instanceof Directory) {
+        return colors['di']?.code || '';
+    } else if (file instanceof SymbolicLink) {
+        return colors['ln']?.code || '';
+    } else if (file instanceof Device) {
+        return colors['cd']?.code || '';
+    } else {
+        const mode = file.mode >> 3;
+        if (mode & constants.S_IXUSR) return colors['ex']?.code || '';
+        return colors['rs']?.code || '';
+    }
+}
+
 const LS_FILE_CHARS = new Map([
     [constants.S_IFREG, '-'],
     [constants.S_IFBLK, 'b'],
@@ -115,6 +157,7 @@ let ls = command('ls', 'List information about the FILES (the current directory 
                 continue;
             }
             let file = system.fs.lget(path);
+            files.push([path, file]);
             if (file instanceof Directory) {
                 for (let subFile of file) {
                     recursively(subFile, (file, path) => {
@@ -123,10 +166,15 @@ let ls = command('ls', 'List information about the FILES (the current directory 
                         }
                     }, args.R);
                 }
-            } else {
-                files.push([path, file]);
             }
         }
+        const lsColors = process.env.LS_COLORS?.split(':').reduce((acc, curr) => {
+            const [key, value] = curr.split('=');
+            if (key && value) {
+                acc[key] = {code: value, description: ''};
+            }
+            return acc;
+        }, {} as {[key: string]: ColorEntry}) || DEFAULT_LS_COLORS;
         if (args.l) {
             let data: [string, string, string, string, string, string][] = [];
             for (let [path, file] of files) {
@@ -145,9 +193,11 @@ let ls = command('ls', 'List information about the FILES (the current directory 
                 let group = system.um.getGroupData(file.uid).name;
                 let mtime = (new Date(Number(file.mtime / 1000000n)));
                 let mtimeString = `${MONTHS[mtime.getMonth() - 1]} ${mtime.getDay().toString().padStart(2, '0')} ${mtime.getHours().toString().padStart(2, '0')}:${mtime.getMinutes().toString().padStart(2, '0')}`;
-                path = path.slice(path.lastIndexOf('/') + 1);
+                const color = getFileColor(file, lsColors);
+                path = `\x1b[${color}m${path.slice(path.lastIndexOf('/') + 1)}\x1b[00m`;
                 if (file instanceof SymbolicLink) {
-                    path += ` -> ${file.path}`;
+                    const color = getFileColor(file.linkedTo ?? 'orphan', lsColors);
+                    path += ` -> \x1b[${color}m${file.path}\x1b[0m`;
                 }
                 data.push([mode, file.nlink.toString(), user, group, file.size.toString(), mtimeString + ' ' + path]);
             }
@@ -183,7 +233,7 @@ let mkdir = command('mkdir', 'Create the DIRECTORY(ies), if they do not already 
     .option('-p', '--parents', 'no error if existing, make parent directories as needed')
     .func(({args, system}) => {
         for (let directory of args.directory) {
-            system.fs.mkdir(directory, args.p, args.m);
+            system.fs.mkdir(directory, args.p, args.m || 0o6440);
         }
     });
 

@@ -800,12 +800,15 @@ export class Directory extends FileObject {
             this.rootDir.link(parsed, file);
         } else {
             let relPath = parsed.slice(this.absPath.length);
+            if (relPath.startsWith('/')) {
+                relPath = relPath.slice(1);
+            }
             if (relPath.includes('/')) {
                 let parts = relPath.split('/');
                 let dir = this.getDir(parts.slice(0, -1).join('/'));
                 dir.files.set(parts[parts.length - 1], file);
             } else {
-                this.files.set(relPath.slice(1), file);
+                this.files.set(relPath, file);
             }
         }
     }
@@ -841,7 +844,7 @@ export class Directory extends FileObject {
         } else {
             let file = new Directory(this.rootDir, new Map(), {uid: this.uid, gid: this.gid, mode: parseModeArg(mode)});
             file.absPath = join(this.absPath, parsed) + '/';
-            this.files.set(parsed.slice(1), file);
+            this.link(parsed.slice(1), file);
             return file;
         }
     }

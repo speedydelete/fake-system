@@ -53,7 +53,7 @@ export class System {
             window.crypto.getRandomValues(out);
             return out;
         }});
-        this.fs.symlink('/dev/urandom', '/dev/random');
+        this.fs.link('/dev/random', this.fs.get('/dev/urandom'));
         this.fs.mkdir('/etc');
         this.fs.write('/etc/passwd', 'root::1:1::/root:/bin/bash');
         this.fs.write('/etc/group', 'root::gid:root');

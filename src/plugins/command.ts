@@ -28,9 +28,12 @@ export type ParsedOption<Name extends string = string, LongName extends string |
 export type ArgumentToParsedArgument<Arg extends Argument> = Arg extends `[${infer Name}]` ? ParsedOptionalArgument<Name> : (Arg extends `${infer Name}...` ? ParsedVariadicArgument<Name> : ParsedRequiredArgument<Arg>);
 export type OptionToParsedOption<Opt extends Option, LongName extends string | undefined = undefined> = Opt extends `-${'-' | ''}${infer Name}=[${infer Arg}]` ? ParsedOptionWithOptionalArgument<Name, Arg, LongName> : (Opt extends `-${'-' | ''}${infer Name}=${infer Arg}` ? ParsedOptionWithRequiredArgument<Name, Arg, LongName> : (Opt extends `-${'-' | ''}${infer Name}` ? ParsedBooleanOption<Name, LongName> : ParsedBooleanOption<Opt>));
 
-export type ParsedArguments<Args extends ParsedArgument[], Opts extends ParsedOption[]> = {[Arg in Args[number] as Lowercase<Arg['name']>]: Arg extends ParsedRequiredArgument ? string : (Arg extends ParsedOptionalArgument ? string | undefined : (Arg extends ParsedVariadicArgument ? string[] : never))} & {[Opt in Opts[number] as Opt['name']]: Opt extends ParsedBooleanOption ? boolean : (Opt extends ParsedOptionWithOptionalArgument ? string | true | undefined : (Opt extends ParsedOptionWithRequiredArgument ? string | undefined : (Opt['arg'] extends null ? boolean : string | undefined)))};
+type PreserveCaseFirst<S extends string> = S extends Uppercase<S> ? Uppercase<S>  : Lowercase<S>;
+type CamelCase<S extends string> = S extends `-${infer Rest}` ? CamelCase<Rest> : S extends `${infer First}-${infer Rest}` ? `${PreserveCaseFirst<First>}${Capitalize<CamelCase<Rest>>}` : PreserveCaseFirst<S>;
 
-export type CommandFunction<Args extends ParsedArgument[], Opts extends ParsedOption[]> = (options: {args: ParsedArguments<Args, Opts>, process: Process, session: BashUserSession, system: System, error(message: string): void, suppressErrors(suppress?: boolean): void}) => void;
+export type ParsedArguments<Args extends ParsedArgument[], Opts extends ParsedOption[]> = {[Arg in Args[number] as Lowercase<Arg['name']>]: Arg extends ParsedRequiredArgument ? string : (Arg extends ParsedOptionalArgument ? string | undefined : (Arg extends ParsedVariadicArgument ? string[] : never))} & {[Opt in Opts[number] as CamelCase<Opt['name']>]: Opt extends ParsedBooleanOption ? boolean : (Opt extends ParsedOptionWithOptionalArgument ? string | true | undefined : (Opt extends ParsedOptionWithRequiredArgument ? string | undefined : (Opt['arg'] extends null ? boolean : string | undefined)))};
+
+export type CommandFunction<Args extends ParsedArgument[], Opts extends ParsedOption[]> = (options: {args: ParsedArguments<Args, Opts>, process: BashProcess, session: BashUserSession, system: System, error(message: string): void, suppressErrors(suppress?: boolean): void}) => void;
 
 
 export class ArgumentParsingError<Args extends ParsedArgument[], Opts extends ParsedOption[]> extends Error {
@@ -111,7 +114,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                     suppressed = suppress;
                 }
                 try {
-                    func({args: parsed, process, session: session as BashUserSession, system: session.system, error, suppressErrors});
+                    func({args: parsed, process: process as BashProcess, session: session as BashUserSession, system: session.system, error, suppressErrors});
                 } catch (error) {
                     process.stderr += `${this.name}: error: ${error instanceof Error ? error.stack : String(error)}`;
                 }
@@ -244,9 +247,13 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 out[arg.key] = [];
             }
         }
-        for (let [_, {key}] of this.optionsForParsing) {
+        for (let {key, hasArg} of this.optionsForParsing.values()) {
             if (!(key in out)) {
-                out[key] = false;
+                if (hasArg) {
+                    out[key] = undefined;
+                } else {
+                    out[key] = false;
+                }
             }
         }
         return out as ParsedArguments<Args, Opts>;
