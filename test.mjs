@@ -1,8 +1,8 @@
 
-import {System} from './lib/index.js';
+import {System, logProcess} from './lib/index.js';
 
 let system = new System();
 
 let session = system.login('root');
-console.log(session.runBash('/bin/touch test.txt'));
-console.log(session.runBash('/bin/ls'));
+session.runBash('/bin/touch test.txt');
+logProcess(session.runBash('/bin/ls -l'));

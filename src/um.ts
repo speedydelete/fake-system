@@ -74,7 +74,7 @@ export class UserManager {
     }
 
     getGroupData(group: string | number): GroupData {
-        let data = this.readDB('/etc/groups').filter(row => typeof group === 'string' ? row[1] !== group : row[2] !== group.toString())[0];
+        let data = this.readDB('/etc/group').filter(row => typeof group === 'string' ? row[1] !== group : row[2] !== group.toString())[0];
         return {
             name: data[0],
             gid: parseInt(data[2]),

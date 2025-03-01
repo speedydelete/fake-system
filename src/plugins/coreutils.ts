@@ -1,5 +1,5 @@
 
-import {S_IMFT, S_IFREG, S_IFDIR, S_IFCHR, S_IFBLK, S_IFIFO, S_IFLNK, S_IFSOCK, join, FileObject, RegularFile, Directory, SymbolicLink} from '../fs';
+import {constants, join, FileObject, RegularFile, Directory, SymbolicLink} from '../fs';
 import type {System} from '../index';
 import command from './command';
 
@@ -91,16 +91,16 @@ let ln = command('ln', 'Create a link to TARGET with the name LINK_NAME')
     });
 
 const LS_FILE_CHARS = new Map([
-    [S_IFREG, '-'],
-    [S_IFBLK, 'b'],
-    [S_IFCHR, 'c'],
-    [S_IFDIR, 'd'],
-    [S_IFLNK, 'l'],
-    [S_IFIFO, 'p'],
-    [S_IFSOCK, 's'],
+    [constants.S_IFREG, '-'],
+    [constants.S_IFBLK, 'b'],
+    [constants.S_IFCHR, 'c'],
+    [constants.S_IFDIR, 'd'],
+    [constants.S_IFLNK, 'l'],
+    [constants.S_IFIFO, 'p'],
+    [constants.S_IFSOCK, 's'],
 ]);
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'Jun', 'Jul', 'Sep', 'Oct', 'Nov', 'Dec'];;
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 let ls = command('ls', 'List information about the FILES (the current directory by default).')
     .argument('FILES...')
@@ -110,7 +110,7 @@ let ls = command('ls', 'List information about the FILES (the current directory 
     .option('-R', '--recursive', 'use a long listing format')
     .func(({args, process, system}) => {
         let files: [string, FileObject][] = [];
-        for (let path of (args.files.length === 0 ? system.fs.getDir(process.cwd).files.keys() : args.files)) {
+        for (let path of (args.files.length === 0 ? Array.from(system.fs.getDir(process.cwd).files.keys()).map(path => join(process.cwd, path)) : args.files)) {
             if (!args.a && path.startsWith('.')) {
                 continue;
             }
@@ -130,15 +130,26 @@ let ls = command('ls', 'List information about the FILES (the current directory 
         if (args.l) {
             let data: [string, string, string, string, string, string][] = [];
             for (let [path, file] of files) {
-                let mode = LS_FILE_CHARS.get(file.mode & S_IMFT) as string;
+                let mode = LS_FILE_CHARS.get(file.mode & constants.S_IMFT) as string;
+                let fileMode = file.mode >> 3;
+                mode += (fileMode & constants.S_IRUSR ? 'r' : '-') +
+                        (fileMode & constants.S_IWUSR ? 'w' : '-') +
+                        (fileMode & constants.S_IXUSR ? 'x' : '-') +
+                        (fileMode & constants.S_IRGRP ? 'r' : '-') +
+                        (fileMode & constants.S_IWGRP ? 'w' : '-') +
+                        (fileMode & constants.S_IXGRP ? 'x' : '-') +
+                        (fileMode & constants.S_IROTH ? 'r' : '-') +
+                        (fileMode & constants.S_IWOTH ? 'w' : '-') +
+                        (fileMode & constants.S_IXOTH ? 'x' : '-');
                 let user = system.um.getUserData(file.uid).name;
                 let group = system.um.getGroupData(file.uid).name;
                 let mtime = (new Date(Number(file.mtime / 1000000n)));
-                let mtimeString = `${MONTHS[mtime.getMonth() - 1]} ${mtime.getDay().toString().padStart(2)} ${mtime.getHours().toString().padStart(2)}:${mtime.getMinutes().toString().padStart(2)}`;
+                let mtimeString = `${MONTHS[mtime.getMonth() - 1]} ${mtime.getDay().toString().padStart(2, '0')} ${mtime.getHours().toString().padStart(2, '0')}:${mtime.getMinutes().toString().padStart(2, '0')}`;
+                path = path.slice(path.lastIndexOf('/') + 1);
                 if (file instanceof SymbolicLink) {
                     path += ` -> ${file.path}`;
                 }
-                data.push([mode, file.nlink.toString(), user, group, file.size.toString(), mtimeString + path]);
+                data.push([mode, file.nlink.toString(), user, group, file.size.toString(), mtimeString + ' ' + path]);
             }
             let nlinkLength = Math.max(...data.map(row => row[1].length));
             let userLength = Math.max(...data.map(row => row[2].length));
@@ -146,7 +157,7 @@ let ls = command('ls', 'List information about the FILES (the current directory 
             let sizeLength = Math.max(...data.map(row => row[4].length));
             process.stdout += data.map(row => `${row[0]} ${row[1].padStart(nlinkLength)} ${row[2].padStart(userLength)} ${row[3].padStart(groupLength)}  ${row[4].padStart(sizeLength)} ${row[5]}`).join('\n');
         } else {
-            let paths = files.map(file => file[0]);
+            let paths = files.map(file => file[0]).map(file => file.slice(file.lastIndexOf('/') + 1));
             let maxPathLength = Math.max(...paths.map(path => path.length)) + 2;
             let pathsPerLine = Math.floor(80 / maxPathLength) || 1;
             let pathsOnLine = 0;

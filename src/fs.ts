@@ -89,7 +89,7 @@ export function resolve(cwd: string, ...paths: string[]): string {
     let out = '';
     for (let i = paths.length - 1; i >= 0; i--) {
         out += '/' + paths[i];
-        if (out.startsWith('/')) {
+        if (paths[i].startsWith('/')) {
             return out;
         }
     }
@@ -729,11 +729,11 @@ export class Directory extends FileObject {
                 if (file instanceof Directory) {
                     let newFile = file.files.get(segment);
                     if (newFile === undefined) {
-                        throw new TypeError(`${segments.slice(0, i + 1).join('/')} does not exist`);
+                        throw new TypeError(`${'/' + segments.slice(0, i + 1).join('/')} does not exist`);
                     }
                     file = newFile;
                 } else {
-                    throw new TypeError(`${segments.slice(0, i).join('/')} is not a directory`);
+                    throw new TypeError(`${'/' + segments.slice(0, i).join('/')} is not a directory`);
                 }
             }
             return file;

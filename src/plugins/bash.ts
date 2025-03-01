@@ -161,7 +161,7 @@ function extractCommandsPipeline(words: Word[]): Command[][] {
 function substitutions(process: Process, words: Word[]): string[] {
     let argv = [];
     for (let word of words) {
-        if (!word.quoted && !word.text.startsWith('/') && !word.text.startsWith('.')) {
+        if (!word.quoted && !word.text.startsWith('/') && !word.text.startsWith('.') && !word.text.startsWith('-')) {
             word.text = normalize(resolve(process.cwd, word.text));
         }
         argv.push(word.text);

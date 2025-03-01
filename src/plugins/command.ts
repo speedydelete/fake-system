@@ -1,4 +1,3 @@
-
 import {DeviceExecutor} from '../fs';
 import {System, Process, UserSession} from '../index';
 import {BashUserSession, BashProcess} from './bash';
@@ -85,8 +84,20 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
     }
 
     func(func: CommandFunction<Args, Opts>): DeviceExecutor {
+        let requiredArgs = [];
+        let optionalArgs = [];
+        let variadicArgs = [];
+        for (let arg of this.args) {
+            if (arg.optional) {
+                optionalArgs.push(arg);
+            } else if (arg.variadic) {
+                variadicArgs.push(arg);
+            } else {
+                requiredArgs.push(arg);
+            }
+        }
         return (process: Process, session: UserSession) =>  {
-            let parsed = this.parse((process as BashProcess).argv);
+            let parsed = this.parse((process as BashProcess).argv, requiredArgs, optionalArgs, variadicArgs);
             if (typeof parsed === 'string') {
                 process.stdout += parsed + '\n';
             } else {
@@ -102,7 +113,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 try {
                     func({args: parsed, process, session: session as BashUserSession, system: session.system, error, suppressErrors});
                 } catch (error) {
-                    process.stderr += `${this.name}: error: ${error instanceof CommandError ? error.message : (error instanceof Error ? error.stack : String(error))}`;
+                    process.stderr += `${this.name}: error: ${error instanceof Error ? error.stack : String(error)}`;
                 }
             }
         };
@@ -116,7 +127,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
         } else if (arg.endsWith('...')) {
             let name = arg.slice(0, -3).toUpperCase() as Uppercase<string>;
             let key = name.toLowerCase() as Lowercase<string>;
-            this.args.push({name, key, optional: true, variadic: false, synopsis: synopsis ?? `${name}...`});
+            this.args.push({name, key, optional: false, variadic: true, synopsis: synopsis ?? `${name}...`});
         } else {
             let name = arg.toUpperCase() as Uppercase<string>;
             let key = name.toLowerCase() as Lowercase<string>;
@@ -159,14 +170,15 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
             this.options.push({name, longName, arg: null, argIsOptional: null, description});
         }
         let key = flagToCamelCase(name);
-        this.optionsForParsing.set(name, {key, hasArg: arg !== null, argIsOptional});
+        this.optionsForParsing.set(name.replace(/^--?/, ''), {key, hasArg: arg !== null, argIsOptional});
         if (longName !== undefined) {
-            this.optionsForParsing.set(longName, {key, hasArg: arg !== null, argIsOptional});
+            this.optionsForParsing.set(longName.replace(/^--?/, ''), {key, hasArg: arg !== null, argIsOptional});
         }
         return this as unknown as Command<Args, [...Opts, OptionToParsedOption<T, LongName>]>;
     }
 
-    parse(argv: string[]): ParsedArguments<Args, Opts> | string {
+    parse(argv: string[], requiredArgs: ParsedRequiredArgument[], optionalArgs: ParsedOptionalArgument[], variadicArgs: ParsedVariadicArgument[]): ParsedArguments<Args, Opts> | string {
+        argv = argv.slice(1);
         let out: {[key: string]: unknown} = {};
         let posArgs = [];
         for (let i = 0; i < argv.length; i++) {
@@ -177,23 +189,21 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 for (let flag of flags) {
                     let option = this.optionsForParsing.get(flag);
                     if (option === undefined) {
-                        if (flag === '-h' || flag === '--help') {
-                            if (flagArg === undefined) {
-                                throw new ArgumentParsingError(this, `flag ${arg} does not take an argument`);
-                            } else {
-                                return this.getHelpMessage() + '\n';
-                            }
+                        if (flag === 'h' || flag === 'help') {
+                            return this.getHelpMessage();
                         } else {
                             throw new ArgumentParsingError(this, `unrecognized flag ${flag}`);
                         }
                     } else {
                         let {key, hasArg, argIsOptional} = option;
                         if (hasArg) {
-                            if (flagArg.startsWith('-')) {
-                                if (argIsOptional) {
-                                    out[key] = '';
-                                } else {
+                            if (flagArg === undefined) {
+                                if (i + 1 < argv.length && !argv[i + 1].startsWith('-')) {
+                                    out[key] = argv[++i];
+                                } else if (!argIsOptional) {
                                     throw new ArgumentParsingError(this, `flag ${arg} requires an argument`);
+                                } else {
+                                    out[key] = true;
                                 }
                             } else {
                                 out[key] = flagArg;
@@ -201,7 +211,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                         } else if (flagArg !== undefined) {
                             throw new ArgumentParsingError(this, `flag ${arg} does not take an argument`);
                         } else {
-                            out[key] = '';
+                            out[key] = true;
                         }
                     }
                 }
@@ -209,19 +219,60 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 posArgs.push(arg);
             }
         }
-
+        if (posArgs.length < requiredArgs.length) {
+            throw new ArgumentParsingError(this, `missing required argument '${requiredArgs[posArgs.length].name}'`);
+        }
+        let currentPos = 0;
+        for (let arg of requiredArgs) {
+            out[arg.key] = posArgs[currentPos++];
+        }
+        if (variadicArgs.length > 0) {
+            const variadicArg = variadicArgs[0];
+            const remainingArgs = posArgs.slice(currentPos);
+            out[variadicArg.key] = remainingArgs;
+        } else {
+            for (let arg of optionalArgs) {
+                if (currentPos < posArgs.length) {
+                    out[arg.key] = posArgs[currentPos++];
+                } else {
+                    out[arg.key] = undefined;
+                }
+            }
+        }
+        for (let arg of variadicArgs) {
+            if (!(arg.key in out)) {
+                out[arg.key] = [];
+            }
+        }
+        for (let [_, {key}] of this.optionsForParsing) {
+            if (!(key in out)) {
+                out[key] = false;
+            }
+        }
         return out as ParsedArguments<Args, Opts>;
     }
 
     getHelpMessage(): string {
         let argUsage = this.args.map(arg => arg.synopsis).join(' ').toUpperCase();
-        let out = `Usage: ${this.name} ${this.options.length > 0 ? 'OPTION ' : ''}${argUsage}\n`;
+        let out = `Usage: ${this.name} ${this.options.length > 0 ? '[OPTION]... ' : ''}${argUsage}\n`;
         out += this.description + '\n';
         if (this.options.length > 0) {
-            out += '\n';
+            out += '\nOptions:\n';
             for (let option of this.options) {
-
+                let optText = `  -${option.name}`;
+                if (option.longName) {
+                    optText += `, ${option.longName}`;
+                }
+                if (option.arg !== null) {
+                    optText += `${option.argIsOptional ? '[=' : '='}${option.arg}${option.argIsOptional ? ']' : ''}`;
+                }
+                if (option.description) {
+                    optText = optText.padEnd(28);
+                    optText += option.description;
+                }
+                out += optText + '\n';
             }
+            out += '  -h, --help              Display this help and exit\n';
         }
         return out;
     }

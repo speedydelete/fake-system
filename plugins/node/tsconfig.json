@@ -9,6 +9,6 @@
         "outDir": "lib",
         "sourceMap": true
     },
-    "files": ["./src/index.ts"],
+    "files": ["./index.ts"],
     "exclude": ["node_modules"]
 }

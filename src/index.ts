@@ -162,3 +162,9 @@ export class UserSession implements UserData {
     }
 
 }
+
+
+export function logProcess(process: Process): void {
+    console.log(process.stderr);
+    console.log(process.stdout);
+}
