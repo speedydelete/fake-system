@@ -116,7 +116,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 try {
                     func({args: parsed, process: process as BashProcess, session: session as BashUserSession, system: session.system, error, suppressErrors});
                 } catch (error) {
-                    process.stderr += `${this.name}: error: ${error instanceof Error ? error.stack : String(error)}`;
+                    process.stderr += `${this.name}: error: ${error instanceof Error ? error.message : error}`;
                 }
             }
         };

@@ -207,12 +207,12 @@ let ls = command('ls', 'List information about the FILES (the current directory 
             let sizeLength = Math.max(...data.map(row => row[4].length));
             process.stdout += data.map(row => `${row[0]} ${row[1].padStart(nlinkLength)} ${row[2].padStart(userLength)} ${row[3].padStart(groupLength)}  ${row[4].padStart(sizeLength)} ${row[5]}`).join('\n');
         } else {
-            let paths = files.map(file => file[0]).map(file => file.slice(file.lastIndexOf('/') + 1));
-            let maxPathLength = Math.max(...paths.map(path => path.length)) + 2;
+            let maxPathLength = Math.max(...files.map(file => file[0].length - file[0].lastIndexOf('/'))) + 2;
             let pathsPerLine = Math.floor(80 / maxPathLength) || 1;
             let pathsOnLine = 0;
-            for (let path of paths) {
-                process.stdout += path;
+            for (let [path, file] of files) {
+                const color = getFileColor(file, lsColors);
+                process.stdout += `\x1b[${color}m${path.slice(path.lastIndexOf('/') + 1)}\x1b[0m`;
                 pathsOnLine++;
                 if (pathsOnLine === pathsPerLine) {
                     process.stdout += '\n';
@@ -301,7 +301,6 @@ let rmdir = command('rm', 'Remove the DIRECTORY(ies), if they are empty.')
 function overwrite(file: FileObject): void {
     eval(''); // don't optimize
     if (file instanceof RegularFile) {
-        // Bruce Schneier's recommended overwriting pattern
         file.data.fill(0b00000000);
         file.data.fill(0b11111111);
         window.crypto.getRandomValues(file.data);

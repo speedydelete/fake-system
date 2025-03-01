@@ -32,6 +32,7 @@ export class System {
     um: UserManager;
     processes: Process[] = [];
     addedPluginIds: string[] = [];
+    hostname: string = 'fake-system';
 
     constructor(addDefaultPlugins: boolean = true) {
         this.fs = new FileSystem();
@@ -165,6 +166,5 @@ export class UserSession implements UserData {
 
 
 export function logProcess(process: Process): void {
-    console.log(process.stderr);
-    console.log(process.stdout);
+
 }

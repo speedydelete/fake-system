@@ -774,20 +774,12 @@ export class Directory extends FileObject {
     }
 
     exists(path: PathArg): boolean {
-        let segments = parsePathArg(path, this.absPath).split('/');
-        let file: FileObject = this;
-        for (let i = 0; i < segments.length; i++) {
-            let segment = segments[i];
-            if (file instanceof Directory) {
-                let newFile = file.files.get(segment);
-                if (newFile === undefined) {
-                    return false;
-                }
-            } else {
-                throw new TypeError(`${segments.slice(0, i).join('/')} is not a directory`);
-            }
+        try {
+            this.get(path);
+            return true;
+        } catch {
+            return false;
         }
-        return true;
     }
 
     link(path: PathArg, file: FileObject): void {

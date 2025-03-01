@@ -1,5 +1,5 @@
 
-import {normalize, resolve, RegularFile, Device} from '../fs';
+import {normalize, resolve, type FileObject, RegularFile, Device} from '../fs';
 import type {System, UserSession, Process} from '../index';
 
 
@@ -12,6 +12,7 @@ export interface BashUserSession extends UserSession {
     createProcess(...argv: string[]): BashProcess;
     run(process: Process): void;
     runBash(code: string): BashProcess;
+    getPS1(): string;
     aliases: Map<string, string>;
     prevDir: string;
 }
@@ -160,8 +161,8 @@ function extractCommandsPipeline(words: Word[]): Command[][] {
 }
 
 function substitutions(process: Process, words: Word[]): string[] {
-    let argv = [];
-    for (let word of words) {
+    let argv = [words[0].text];
+    for (let word of words.slice(1)) {
         if (!word.quoted && !word.text.startsWith('/') && !word.text.startsWith('.') && !word.text.startsWith('-')) {
             word.text = normalize(resolve(process.cwd, word.text));
         }
@@ -308,7 +309,21 @@ function bash(command: string, process: BashProcess, session: BashUserSession): 
 
 
 function run(this: BashUserSession, process: BashProcess): void {
-    let file = this.system.fs.get(process.argv[0]);
+    let argv0 = resolve(process.cwd, process.argv[0]);
+    if (!this.system.fs.exists(argv0)) {
+        let found = false;
+        for (let path of process.env.PATH.split(':')) {
+            argv0 = resolve(path, process.argv[0]);
+            if (this.system.fs.exists(argv0)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            throw new TypeError(`${process.argv[0]} does not exist`);
+        }
+    }
+    let file = this.system.fs.get(argv0);
     if (file instanceof Device) {
         file.executor(process, this);
     } else if (file instanceof RegularFile) {
@@ -353,11 +368,18 @@ export default function plugin<T extends System>(this: T): T & BashSystem {
                 },
                 runBash(this: BashUserSession, command: string): BashProcess {
                     let process = this.createProcess();
-                    bash(command, process, this);
-                    if (process.exitCode === undefined) {
-                        this.run(process);
+                    try {
+                        bash(command, process, this);
+                        if (process.exitCode === undefined) {
+                            this.run(process);
+                        }
+                    } catch (error) {
+                        process.stderr += `bash: error: ${error instanceof Error ? error.message : error}\n`;
                     }
                     return process;
+                },
+                getPS1(this: BashUserSession): string {
+                    return `\x1b[01;32m${this.name}@${this.system.hostname}\x1b[0m:\x1b[01;34m${this.cwd.replace(new RegExp('^' + this.homedir), '~')}\x1b[0m${this.uid === 0 ? '#' : '$'} `;
                 },
                 aliases: new Map(),
                 prevDir: out.homedir,
