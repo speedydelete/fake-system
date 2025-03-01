@@ -9,6 +9,7 @@
   "exports": {
     ".": "./lib/index.js",
     "./fs": "./lib/fs.js",
+    "./bash": "./lib/plugins/bash.js",
     "./bash_command": "./lib/plugins/command.js"
   },
   "types": "lib/index.d.ts",

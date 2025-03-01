@@ -1,5 +1,6 @@
 
 /// <reference path="../in_node.d.ts" />
+import type {NodeSystem} from '..';
 
 export const EOL = '\n';
 
@@ -170,7 +171,7 @@ export function getPriority(pid: number = -1): number {
     if (pid === -1) {
         return __fakeNode_process__.priority;
     }
-    const process = __fakeNode__.processes.get(pid);
+    const process = __fakeNode_system__.processes[pid];
     if (process === undefined) {
         throw new TypeError(`invalid PID: ${pid}`);
     }
@@ -182,7 +183,7 @@ export function homedir(): string {
 }
 
 export function hostname(): string {
-    return __fakeNode__.globalenv.HOSTNAME;
+    return __fakeNode_system__.hostname;
 }
 
 export function loadavg(): [number, number, number] {
@@ -198,7 +199,16 @@ export function networkInterfaces(): {[key: string]: {address: string, netmask: 
 }
 
 export function platform(): string {
-    return __fakeNode__.getPlatform();
+    const data = navigator.userAgent.slice('Mozilla/5.0 ('.length, navigator.userAgent.indexOf(')'));
+    if (data.includes('Windows')) {
+        return 'win32';
+    } else if (data.includes('Linux')) {
+        return 'linux';
+    } else if (data.includes('Mac')) {
+        return 'darwin';
+    } else {
+        return 'unknown';
+    }
 }
 
 export function release(): string {
@@ -211,7 +221,7 @@ export function setPriority(pid_or_priority: number, priority?: number): void {
     if (priority === undefined) {
         __fakeNode_process__.priority = pid_or_priority;
     } else {
-        const process = __fakeNode__.processes.get(pid_or_priority);
+        const process = __fakeNode_system__.processes[pid_or_priority];
         if (process === undefined) {
             throw new TypeError(`invalid PID: ${pid_or_priority}`);
         }
@@ -220,7 +230,7 @@ export function setPriority(pid_or_priority: number, priority?: number): void {
 }
 
 export function tmpdir(): string {
-    return __fakeNode__.globalenv.TMPDIR;
+    return '/tmp';
 }
 
 export function totalmem(): number {
@@ -228,7 +238,7 @@ export function totalmem(): number {
 }
 
 export function type(): string {
-    const data = navigator.userAgent.slice('Mozilla/5.0 ('.length, navigator.userAgent.indexOf(')'));
+    const data = (__fakeNode_system__ as NodeSystem).node.window.navigator.userAgent.slice('Mozilla/5.0 ('.length, navigator.userAgent.indexOf(')'));
     if (data.includes('Windows NT')) {
         return 'Windows_NT';
     } else if (data.includes('Linux')) {
@@ -241,7 +251,7 @@ export function type(): string {
 }
 
 export function uptime(): number {
-    return (__fakeNode__.window.performance.now() - __fakeNode__.window.performance.timeOrigin) / 1000;
+    return (__fakeNode_system__.node.window.performance.now() - __fakeNode_system__.node.window.performance.timeOrigin) / 1000;
 }
 
 export function userInfo(): {username: string, uid: number, gid: number, shell: string, homedir: string} {
@@ -255,6 +265,6 @@ export function userInfo(): {username: string, uid: number, gid: number, shell: 
     }
 }
 
-export function version(): string {
-    return __fakeNode__.version;
-}
+// export function version(): string {
+//     return __fakeNode_system__.version;
+// }

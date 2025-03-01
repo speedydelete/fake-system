@@ -1,8 +1,9 @@
 
 /// <reference path="../in_node.d.ts" />
+import {NodeSystem} from '..';
 
 export function abort(): void {
-    __fakeNode__.window.close();
+    __fakeNode_system__.node.window.close();
 }
 
 export const allowedNodeEnvironmentFlags = new Set<never>();
@@ -89,7 +90,7 @@ export function getActiveResourcesInfo(): string[] {
 }
 
 export function getBuiltinModule(id: string): any {
-    return __fakeNode_process__.fakeNode.modules.get(id);
+    return __fakeNode_system__.node.modules.get(id);
 }
 
 export function getegid(): number {
@@ -105,7 +106,7 @@ export function getgid(): number {
 }
 
 export function getgroups(): number[] {
-    return [__fakeNode_process__.gid].concat(__fakeNode_process__.groups);
+    return [__fakeNode_process__.gid];
 }
 
 export function getuid(): number {
@@ -180,37 +181,38 @@ export const release = {
 };
 
 export function setegid(id: string | number): void {
-    __fakeNode_process__.gid = __fakeNode__.getGIDFromGroup(id);
+    __fakeNode_process__.gid = __fakeNode_system__.um.getGroupData(id).gid;
 }
 
 export function seteuid(id: string | number): void {
-    __fakeNode_process__.uid = __fakeNode__.getUIDFromUser(id);
+    __fakeNode_process__.uid = __fakeNode_system__.um.getUserData(id).uid;
 }
 
 export function setgid(id: string | number): void {
-    __fakeNode_process__.gid = __fakeNode__.getGIDFromGroup(id);
+    __fakeNode_process__.gid = __fakeNode_system__.um.getGroupData(id).gid;
 }
 
-export function setgroups(groups: (string | number)[]): void {
-    __fakeNode_process__.groups = groups.map(__fakeNode__.getGIDFromGroup);
-}
+// export function setgroups(groups: (string | number)[]): void {
+//     __fakeNode_process__.groups = groups.map(__fakeNode__.getGIDFromGroup);
+// }
 
 export function setuid(id: string | number): void {
-    __fakeNode_process__.uid = __fakeNode__.getUIDFromUser(id);
+    __fakeNode_process__.uid = __fakeNode_system__.um.getUserData(id).uid;
 }
 
 export function setSourceMapsEnabledVal(val: boolean): void {
     throw new TypeError('process.setSourceMapsEnabledVal is not supported in fake-node');
 }
 
-export function setUncaughtExceptionCaptureCallback(func: Function | null): void {
-    if (errorCallback !== null) {
-        __fakeNode__.removeErrorCallback(errorCallback);
-    }
-    if (func !== null) {
-        errorCallback = __fakeNode__.addErrorCallback(func);
-    }
-}
+// export function setUncaughtExceptionCaptureCallback(func: Function | null): void {
+//     if (errorCallback !== null) {
+//         __fakeNode_system__.node.removeErrorCallback(errorCallback);
+//     }
+//     if (func !== null) {
+//         errorCallback = __fakeNode_system__.addErrorCallback(func);
+//     }
+// }
+// 
 
 export const sourceMapsEnabled = false;
 
@@ -241,5 +243,5 @@ export function unref(maybeRefable: any): void {
 }
 
 export function uptime(): number {
-    return __fakeNode_process__.fakeNode.window.performance.now() / 1000;
+    return __fakeNode_system__.node.window.performance.now() / 1000;
 }

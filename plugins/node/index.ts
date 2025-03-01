@@ -1,6 +1,7 @@
 
-import {System, type Process} from '../../src/index'; // fake-system
-import command from '../../src/plugins/command'; // fake-system/command
+import {System, type Process} from 'fake-system'
+import {type BashProcess} from 'fake-system/bash';
+import command from 'fake-system/bash_command'
 import * as baseProcessObject from './modules/process';
 import * as module_os from './modules/os';
 import * as module_util from './modules/util';
@@ -87,7 +88,7 @@ function getPlatform(): string {
     }
 }
 
-function getProcessObject(process: Process): ProcessObject {
+function getProcessObject(process: BashProcess): ProcessObject {
     let out = Object.create(baseProcessObject);
     out.argv = process.argv;
     Object.defineProperty(out, 'argv0', {value: process.argv[0], configurable: false, writable: false});
@@ -101,7 +102,7 @@ function getProcessObject(process: Process): ProcessObject {
     return out;
 }
 
-function require(this: NodeSystem, process: Process, module: string): unknown {
+function fakeRequire(this: NodeSystem, module: string, process: Process): unknown {
     if (module.startsWith('/') || module.startsWith('./') || module.startsWith('../')) {
         const path = module_path.resolve(process.cwd, module);
         return this.fs.read(path);
@@ -113,6 +114,8 @@ function require(this: NodeSystem, process: Process, module: string): unknown {
         throw new Error(`cannot find module '${module}'`);
     }
 }
+
+export {fakeRequire as require};
 
 
 function run(system: NodeSystem, process: Process, code: string, filename: string) {
@@ -147,7 +150,7 @@ let node = command('node', ' Node.js is a set of libraries for JavaScript which 
 
 export default function plugin<T extends System>(this: T, options: Options): T & NodeSystem {
     this.fs.addDevice('/usr/bin/node', {executor: node});
-    let window = document.createElement('iframe').contentWindow;
+    let window = document.createElement('iframe').contentWindow as Window;
     for (const global of WEB_ONLY_GLOBALS) {
         // @ts-ignore
         delete this.window[global];
@@ -172,7 +175,7 @@ export default function plugin<T extends System>(this: T, options: Options): T &
             modules: new Map(BUILTIN_MODULES),
             errorCallbacks: [],
             isBrowser: IS_BROWSER,
-            require: require.bind(this),
+            require: fakeRequire.bind(this as unknown as NodeSystem),
             getProcessObject: getProcessObject.bind(this),
             development: options.development ?? false,
             fileExtensions: {...(options.fileExtensions ?? {}), ...DEFAULT_FILE_EXTENSIONS},

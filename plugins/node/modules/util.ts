@@ -1,5 +1,6 @@
 
 /// <reference path="../in_node.d.ts" />
+import {type BashProcess} from 'fake-system/bash';
 import {emitWarning} from './process';
 
 export type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array | BigInt64Array;
@@ -19,9 +20,10 @@ export function callbackify(original: (...args: any[]) => Promise<any>): (...arg
 }
 
 export function debuglog(section: string, callback: (message: string) => void = console.log): ((message: string) => void) & {enabled: boolean} {
-    if (typeof __fakeNode_process__.env.NODE_DEBUG === 'string' && __fakeNode_process__.env.NODE_DEBUG.includes(section)) {
+    let env = (__fakeNode_process__ as BashProcess).env;
+    if (typeof env.NODE_DEBUG === 'string' && env.NODE_DEBUG.includes(section)) {
         return Object.assign(function(message: string): void {
-            callback(`${__fakeNode_process__.env.NODE_DEBUG.toUpperCase()} ${__fakeNode_process__.pid}: ${message}`);
+            callback(`${env.NODE_DEBUG.toUpperCase()} ${__fakeNode_process__.pid}: ${message}`);
         }, {enabled: true});
     } else {
         return Object.assign(() => {}, {enabled: true});

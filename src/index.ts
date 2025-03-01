@@ -12,6 +12,7 @@ export interface Process {
     uid: number;
     gid: number;
     cwd: string;
+    umask: number;
     stdin: string;
     stdout: string;
     stderr: string;
@@ -146,9 +147,10 @@ export class UserSession implements UserData {
             system: this.system,
             pid: this.system.processes.length,
             priority: 0,
-            cwd: this.cwd,
             uid: this.uid,
             gid: this.gid,
+            cwd: this.cwd,
+            umask: 0o022,
             stdin: '',
             stdout: '',
             stderr: '',

@@ -1,8 +1,11 @@
 
 import * as babel from '@babel/core';
 import presetEnv from '@babel/preset-env';
+// @ts-ignore
 import pluginTransformReactJSX from '@babel/plugin-transform-react-jsx';
+// @ts-ignore
 import pluginTransformReactJSXDevelopment from '@babel/plugin-transform-react-jsx-development';
+// @ts-ignore
 import pluginTransformTypescript from '@babel/plugin-transform-typescript';
 import type {NodeSystem} from './index';
 
@@ -92,7 +95,10 @@ export function transpile(code: string, options: Options = {}): {code: string, m
         minified: !options.development,
         assumptions: options.assumptions === 'none' ? undefined : (options.assumptions ?? REASONABLE_ASSUMPTIONS),
     });
-    return {code: out.code, map: out.map};
+    if (out === null) {
+        throw new Error('out is null');
+    }
+    return {code: out.code as string, map: out.map};
 }
 
 

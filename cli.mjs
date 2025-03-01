@@ -1,7 +1,9 @@
 
-import {System, logProcess} from './lib/index.js';
+import {System} from './lib/index.js';
+import nodePlugin from 'plugins/node/lib/index.js';
 
 let system = new System();
+system.addPlugin(nodePlugin);
 
 let {default: readline} = await import('node:readline/promises');
 let rl = readline.createInterface({
