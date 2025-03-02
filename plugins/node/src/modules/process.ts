@@ -5,8 +5,7 @@ export function abort(): void {
     if (__fakeNode_system__.node.IS_BROWSER) {
         __fakeNode_system__.node.window.close();
     } else {
-        // @ts-ignore
-        require('node:process').abort();
+        eval('require("node:process").abort()');
     }
 }
 
@@ -135,8 +134,7 @@ hrtime.bigint = function(): bigint {
     if (__fakeNode_system__.node.IS_BROWSER) {
         return BigInt(performance.now());
     } else {
-        // @ts-ignore
-        return require('node:process').hrtime.bigint();
+        return eval('require("node:process").hrtime().bigint()');
     }
 }
 

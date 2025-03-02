@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Test</title>
+        <meta charset="utf-8" />
+        <script src="dist/index.js"></script>
+        <script src="dist/node.js"></script>
+    </head>
+    <body>
+        <script>
+
+window.addEventListener('load', () => {
+    system.fs.write('/root/test.js', 'console.log("hi");');
+    console.log(system.login('root').runBash('ls -l'));
+});
+
+        </script>
+    </body>
+</html>

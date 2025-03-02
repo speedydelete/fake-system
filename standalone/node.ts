@@ -1,5 +1,7 @@
 
 import nodePlugin from '@fake-system/node';
 
-// @ts-ignore
-window.system.addPlugin(nodePlugin);
+window.addEventListener('load', () => {
+    // @ts-ignore
+    window.system.addPlugin(nodePlugin);
+});

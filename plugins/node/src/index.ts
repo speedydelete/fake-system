@@ -10,8 +10,8 @@ import * as module_punycode from 'punycode/';
 import * as module_path from './modules/path';
 import * as module_buffer from './modules/buffer';
 import * as module_fs from './modules/fs';
-import {transpiler, REASONABLE_ASSUMPTIONS, type SourceMap} from './transpiler';
-import WEB_ONLY_GLOBALS from './web_only_globals.json';
+import {type SourceMap, type Options as TranspilerOptions} from './transpiler';
+import {WEB_ONLY_GLOBALS, NON_DELETABLE_WEB_ONLY_GLOBALS} from './web_only_globals.json';
 import NODE_ONLY_GLOBALS from './node_only_globals.json';
 
 
@@ -28,7 +28,7 @@ export interface ProcessObject extends BaseProcessObject {
     versions: {[key: string]: string};
 }
 
-type Transpiler = ((system: NodeSystem, code: string, type: string, filename: string) => {code: string, map: SourceMap}) & {types: string[]};
+type Transpiler = ((system: NodeSystem, code: string, type: string, filename: string) => string | Promise<string>) & {types: string[]};
 
 export interface Options {
     development?: boolean;
@@ -72,6 +72,8 @@ const DEFAULT_FILE_EXTENSIONS = {
 
 const IS_BROWSER = (('window' in globalThis && window === globalThis && 'document' in window && 'navigator' in window && 'window' in window && window.window === window) || ('self' in globalThis && self === globalThis && typeof self.postMessage === 'function' && 'self' in self && self.self === self));
 
+const IS_MODERN = 'Symbol' in globalThis && 'fetch' in globalThis && 'Promise' in globalThis && 'assign' in Object;
+
 const BUILTIN_MODULES: [string, any][] = [
     ['os', module_os],
     ['util', module_util],
@@ -81,6 +83,63 @@ const BUILTIN_MODULES: [string, any][] = [
     ['buffer', module_buffer],
     ['fs', module_fs],
 ];
+
+const REASONABLE_ASSUMPTIONS = {
+    arrayLikeIsIterable: true,
+    constantSuper: true,
+    enumerableModuleMeta: true,
+    ignoreFunctionLength: true,
+    ignoreToPrimitiveHint: true,
+    mutableTemplateObject: true,
+    noClassCalls: true,
+    noDocumentAll: true,
+    noIncompleteNsImportDetection: true,
+    noNewArrows: true,
+    objectRestNoSymbols: true,
+    privateFieldsAsProperties: true,
+    pureGetters: true,
+    skipForOfIteratorClosing: true,
+};
+
+
+let transpile: ((code: string, options?: TranspilerOptions) => {code: string, map: SourceMap}) | null = null;
+async function transpiler(system: NodeSystem, code: string, type: string, filename: string): Promise<string> {
+    if (IS_MODERN && type === 'text/javascript') {
+        return code;
+    } else if (type === 'application/json') {
+        return 'module.exports = ' + code;
+    } else {
+        if (transpile === null) {
+            transpile = (await import('./transpiler.js')).transpile;
+        }
+        let jsx = false;
+        let ts = false;
+        let dts = false;
+        if (type === 'text/javascript-jsx') {
+            jsx = true;
+        } else if (type === 'text/typescript') {
+            ts = true;
+        } else if (type === 'text/typescript-declaration') {
+            ts = true;
+            dts = true;
+        } else if (type === 'text/typescript-jsx') {
+            jsx = true;
+            ts = true;
+        } else if (type === 'text/typescript-jsx-declaration') {
+            jsx = true;
+            ts = true;
+        }
+        return transpile(code, {
+            filename,
+            development: system.node.development,
+            jsx,
+            ts,
+            dts,
+            assumptions: system.node.assumptions,
+        }).code;
+    }
+}
+transpiler.types = ['text/javascript', 'application/json', 'text/javascript-jsx', 'text/typescript', 'text/typescript-declaration', 'text/typescript-jsx', 'text/typescript-jsx-declaration'];
 
 
 function getPlatform(): string {
@@ -126,7 +185,7 @@ function fakeRequire(this: NodeSystem, module: string, process: Process): unknow
 export {fakeRequire as require};
 
 
-function run(system: NodeSystem, process: Process, code: string, filename: string) {
+async function run(system: NodeSystem, process: Process, code: string, filename: string) {
     let type: string | undefined = undefined;
     for (let ext in system.node.fileExtensions) {
         if (filename.endsWith(ext)) {
@@ -140,15 +199,21 @@ function run(system: NodeSystem, process: Process, code: string, filename: strin
     if (transpiler === undefined) {
         throw new TypeError(`no transpiler found matching ${type}`);
     }
-    ({code} = transpiler(system, code, type, filename));
+    let newCode = transpiler(system, code, type, filename);
+    if (newCode instanceof Promise) {
+        code = await newCode;
+    } else {
+        code = newCode;
+    }
+    code = `()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();`;
     if (system.node.IS_BROWSER) {
         let elt = system.node.window.document.createElement('script');
-        elt.textContent = `__fakeNode_exports__=(()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();)()`;
+        elt.textContent = `__fakeNode_exports__=with{__fakeNode_system__.node.globals}{${code}}`;
         system.node.window.document.body.appendChild(elt);
         // @ts-ignore
         return system.node.window.__fakeNode_exports__;
     } else {
-        return (new Function('__fakeNode_system__', '__fakeNode_process__', `with(__fakeNode_system__.node.globals){return (()=>{'use strict';})();var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();}`))(system, process);
+        return (new Function('__fakeNode_system__', '__fakeNode_process__', `with(__fakeNode_system__.node.globals){return ${code}}`))(system, process);
     }
 }
 
@@ -182,7 +247,10 @@ export default function plugin<T extends System>(this: T, options: Options = {})
         assumptions: options.assumptions ?? REASONABLE_ASSUMPTIONS,
     }
     if (IS_BROWSER) {
-        out.window = document.createElement('iframe').contentWindow as Window;
+        let iframe = document.createElement('iframe');
+        document.body.appendChild(iframe);
+        iframe.style.display = 'none !important';
+        out.window = iframe.contentWindow as Window;
         out.window.global = window;
         out.window.__fakeNode_exports__ = undefined;
         out.window.__fakeNode_system__ = this;
@@ -191,6 +259,7 @@ export default function plugin<T extends System>(this: T, options: Options = {})
                 delete out.window[global];
             }
         }
+        out.globals = Object.create(null, Object.fromEntries(NON_DELETABLE_WEB_ONLY_GLOBALS.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
     } else {
         out.globals = Object.create(null, Object.fromEntries(NODE_ONLY_GLOBALS.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
     }

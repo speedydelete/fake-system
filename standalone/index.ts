@@ -15,4 +15,4 @@ const observer = new MutationObserver(mutations => {
     }
 });
 observer.observe(document.documentElement, {childList: true, subtree: true});
-window.addEventListener('load', observer.disconnect);
+window.addEventListener('load', () => observer.disconnect());

@@ -249,8 +249,7 @@ export function type(): string {
             return 'unknown';
         }
     } else {
-        // @ts-ignore
-        return require('node:os').type();
+        return eval('require("node:os").type()');
     }
 }
 
