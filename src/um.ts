@@ -35,7 +35,7 @@ export class UserManager {
     }
 
     getUserData(user: string | number): UserData {
-        let data = this.readDB('/etc/passwd').filter(row => typeof user === 'string' ? row[1] !== user : row[2] !== user.toString())[0];
+        let data = this.readDB('/etc/passwd').filter(row => typeof user === 'string' ? row[0] === user : row[2] === user.toString())[0];
         return {
             name: data[0],
             uid: parseInt(data[2]),
@@ -74,7 +74,7 @@ export class UserManager {
     }
 
     getGroupData(group: string | number): GroupData {
-        let data = this.readDB('/etc/group').filter(row => typeof group === 'string' ? row[1] !== group : row[2] !== group.toString())[0];
+        let data = this.readDB('/etc/group').filter(row => typeof group === 'string' ? row[1] === group : row[2] === group.toString())[0];
         return {
             name: data[0],
             gid: parseInt(data[2]),

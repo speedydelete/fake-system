@@ -1,7 +1,7 @@
 
 import {constants, join, FileObject, RegularFile, Directory, SymbolicLink, Device} from '../fs';
 import type {System} from '../index';
-import command from './command';
+import {command, CommandError} from './command';
 
 
 function recursively(file: FileObject, func: (file: FileObject, path: string) => void, recursive: boolean = true, path: string = ''): void {
@@ -268,12 +268,12 @@ let rm = command('rm', 'Remove (unlink) the FILE(s).')
                     }, true);
                 } else if (args.d) {
                     if (file.files.size > 0) {
-                        throw new TypeError(`cannot delete non-empty directory`);
+                        throw new CommandError(`cannot delete non-empty directory`);
                     } else {
                         system.fs.unlink(path);
                     }
                 } else {
-                    throw new TypeError(`cannot delete directory`);
+                    throw new CommandError(`cannot delete directory`);
                 }
             } else {
                 system.fs.unlink(path);
@@ -288,12 +288,12 @@ let rmdir = command('rm', 'Remove the DIRECTORY(ies), if they are empty.')
             let file = system.fs.get(path);
             if (file instanceof Directory) {
                 if (file.files.size > 0) {
-                    throw new TypeError(`cannot remove non-empty directory ${path}`); 
+                    throw new CommandError(`cannot remove non-empty directory ${path}`); 
                 } else {
                     system.fs.unlink(path);
                 }
             } else {
-                throw new TypeError(`cannot remove non-directory ${path}`); 
+                throw new CommandError(`cannot remove non-directory ${path}`); 
             }
         }
     });
@@ -357,7 +357,7 @@ let touch = command('touch', 'Update the access and modification times of each F
                 ts = split[0];
             }
             if (ts.length !== 8 && ts.length !== 10 && ts.length !== 12) {
-                throw new TypeError(`invalid time string: ${args.t}`);
+                throw new CommandError(`invalid time string: ${args.t}`);
             }
             if (ts.length === 12) {
                 time.setFullYear(parseInt(ts.slice(0, 4)));

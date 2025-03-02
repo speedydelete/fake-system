@@ -519,6 +519,8 @@ export class RegularFile extends FileObject {
             return data;
         } else if (encoding === 'buffer') {
             return Buffer.from(data);
+        } else if (encoding === 'utf8') {
+            return decoder.decode(data);
         } else {
             return (new TextDecoder(encoding)).decode(data);
         }
@@ -530,7 +532,7 @@ export class RegularFile extends FileObject {
         let encoding = typeof encoding_or_length === 'string' ? encoding_or_length : 'utf8';
         let length = typeof encoding_or_length === 'number' ? encoding_or_length : undefined;
         let array = parseDataArg(data, encoding);
-        if (position === 0 && length === undefined) {
+        if (!position && length === undefined) {
             this.data = array;
         } else if (length === undefined) {
             this.data.set(array, position);
@@ -844,7 +846,7 @@ export class Directory extends FileObject {
     read(path: PathArg, encoding?: BufferEncoding, start?: number, length?: number): string;
     read(path: PathArg, encoding: 'uint8array', start?: number, length?: number): Uint8Array;
     read(path: PathArg, encoding: 'buffer', start?: number, length?: number): Buffer;
-    read(path: PathArg, encoding: BufferEncoding | 'uint8array' | 'buffer' = 'utf8', start: number = 0, length: number = -1): string | Uint8Array | Buffer {
+    read(path: PathArg, encoding: BufferEncoding | 'uint8array' | 'buffer' = 'utf8', start?: number, length?: number): string | Uint8Array | Buffer {
         // @ts-ignore
         return this.getRegular(path).read(encoding, start, length);
     }

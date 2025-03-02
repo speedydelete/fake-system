@@ -1,7 +1,7 @@
 
 import {System, type Process} from 'fake-system'
 import {type BashProcess} from 'fake-system/bash';
-import command from 'fake-system/bash_command'
+import {command, CommandError} from 'fake-system/bash_command'
 import * as baseProcessObject from './modules/process';
 import * as module_os from './modules/os';
 import * as module_util from './modules/util';
@@ -48,15 +48,8 @@ export interface NodeSystem extends System {
         fileExtensions: {[ext: string]: string};
         transpilers: Map<string, Transpiler>;
         assumptions: {[assumption: string]: boolean};
-    } & (
-        {
-            IS_BROWSER: false,
-            globals: {[key: string]: unknown},
-        } | {
-            IS_BROWSER: true,
-            window: Window,
-        }
-    );
+        globals: {[key: string]: unknown},
+    } & ({IS_BROWSER: false} | {IS_BROWSER: true, window: Window});
 }
 
 
@@ -193,11 +186,11 @@ async function run(system: NodeSystem, process: Process, code: string, filename:
         }
     }
     if (type === undefined) {
-        throw new TypeError(`no file extension found matching ${type}`);
+        throw new CommandError(`no file extension found matching ${type}`);
     }
     let transpiler = system.node.transpilers.get(type);
     if (transpiler === undefined) {
-        throw new TypeError(`no transpiler found matching ${type}`);
+        throw new CommandError(`no transpiler found matching ${type}`);
     }
     let newCode = transpiler(system, code, type, filename);
     if (newCode instanceof Promise) {

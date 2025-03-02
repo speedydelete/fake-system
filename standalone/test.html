@@ -11,7 +11,11 @@
 
 window.addEventListener('load', () => {
     system.fs.write('/root/test.js', 'console.log("hi");');
-    console.log(system.login('root').runBash('ls -l'));
+    let session = system.login('root');
+    session.throwUnintentionalCommandErrors = true;
+    let process = session.runBash('ls -l');
+    console.log(process.stderr);
+    console.log(process.stdout);
 });
 
         </script>

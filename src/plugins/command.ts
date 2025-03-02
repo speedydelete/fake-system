@@ -116,7 +116,20 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 try {
                     func({args: parsed, process: process as BashProcess, session: session as BashUserSession, system: session.system, error, suppressErrors});
                 } catch (error) {
-                    process.stderr += `${this.name}: error: ${error instanceof Error ? error.message : error}`;
+                    process.stderr += `${this.name}: error: `;
+                    if (error instanceof Error) {
+                        if (error instanceof CommandError) {
+                            process.stderr += error.message;
+                        } else {
+                            if ((session as BashUserSession).throwUnintentionalCommandErrors) {
+                                throw error;
+                            } else {
+                                process.stderr += error.stack ?? error;
+                            }
+                        }
+                    } else {
+                        process.stderr += error;
+                    }
                 }
             }
         };
@@ -289,5 +302,3 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
 export function command(name: string, description: string): Command {
     return new Command(name, description);
 }
-
-export default command;

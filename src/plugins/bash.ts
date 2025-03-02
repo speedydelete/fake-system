@@ -15,6 +15,7 @@ export interface BashUserSession extends UserSession {
     getPS1(): string;
     aliases: Map<string, string>;
     prevDir: string;
+    throwUnintentionalCommandErrors?: boolean;
 }
 
 export interface BashSystem extends System {
@@ -370,11 +371,11 @@ export default function plugin<T extends System>(this: T): T & BashSystem {
                     let process = this.createProcess();
                     try {
                         bash(command, process, this);
-                        if (process.exitCode === undefined) {
-                            this.run(process);
-                        }
                     } catch (error) {
                         process.stderr += `bash: error: ${error instanceof Error ? error.message : error}\n`;
+                    }
+                    if (process.exitCode === undefined) {
+                        this.run(process);
                     }
                     return process;
                 },
