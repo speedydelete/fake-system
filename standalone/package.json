@@ -5,15 +5,16 @@
   "license": "MIT",
   "author": "speedydelete",
   "type": "commonjs",
-  "main": "lib/index.js",
+  "main": "./index.js",
   "exports": {
-    ".": "./lib/index.js",
-    "./_fs": "./lib/_fs.js"
+    ".": "./dist/index.js",
+    "./node": "./dist/node.js"
   },
-  "types": "lib/index.d.ts",
+  "types": "./index.d.ts",
   "files": [
-    "/src",
-    "/lib"
+    "/dist",
+    "/index.ts",
+    "/index.d.ts"
   ],
   "homepage": "https://github.com/speedydelete/fake-node",
   "repository": {
@@ -29,12 +30,14 @@
     "build-dev": "webpack --mode development"
   },
   "dependencies": {
-    "punycode": "^2.3.1"
   },
   "devDependencies": {
-    "@types/assert": "^1.5.11",
-    "@types/punycode": "^2.1.4",
-    "typescript": "^5.7.3"
+    "webpack": "^5.98.0",
+    "@babel/preset-env": "^7.26.9",
+    "@babel/preset-typescript": "^7.26.0",
+    "@fake-system/node": "file:../plugins/node",
+    "babel-loader": "^10.0.0",
+    "fake-system": "file:..",
+    "webpack-cli": "^6.0.1"
   }
 }
-  

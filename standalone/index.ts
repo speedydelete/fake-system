@@ -1,13 +1,15 @@
 
-import {FakeNode} from '../src/index';
+import {System} from 'fake-system';
 
-let fakeNode = new FakeNode();
+// @ts-ignore
+window.system = new System();
 
 const observer = new MutationObserver(mutations => {
     for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
-            if (node instanceof HTMLScriptElement && 'path' in node.dataset) {
-                fakeNode.write(node.dataset.path, node.text);
+            if (node instanceof HTMLScriptElement && node.dataset.path) {
+                // @ts-ignore
+                system.fs.write(node.dataset.path, node.text);
             }
         }
     }

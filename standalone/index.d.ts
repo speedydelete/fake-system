@@ -1,6 +1,6 @@
 
-import {FakeNode} from '../src/index';
+import {System} from 'fake-system';
 
 declare global {
-    var fakeNode: FakeNode;
+    var system: System;
 }
