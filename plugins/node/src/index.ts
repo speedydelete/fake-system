@@ -242,7 +242,7 @@ export default function plugin<T extends System>(this: T, options: Options = {})
     if (IS_BROWSER) {
         let iframe = document.createElement('iframe');
         document.body.appendChild(iframe);
-        iframe.style.display = 'none !important';
+        iframe.style.display = 'none';
         out.window = iframe.contentWindow as Window;
         out.window.global = window;
         out.window.__fakeNode_exports__ = undefined;
