@@ -198,15 +198,17 @@ async function run(system: NodeSystem, process: Process, code: string, filename:
     } else {
         code = newCode;
     }
-    code = `()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();`;
+    code = `(()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports;})()`;
+    // @ts-ignore
+    globalThis.__fakeNode_process__ = process;
     if (system.node.IS_BROWSER) {
         let elt = system.node.window.document.createElement('script');
-        elt.textContent = `__fakeNode_exports__=with{__fakeNode_system__.node.globals}{${code}}`;
+        elt.textContent = `with(__fakeNode_system__.node.globals){__fakeNode_exports__=${code};};`;
         system.node.window.document.body.appendChild(elt);
         // @ts-ignore
         return system.node.window.__fakeNode_exports__;
     } else {
-        return (new Function('__fakeNode_system__', '__fakeNode_process__', `with(__fakeNode_system__.node.globals){return ${code}}`))(system, process);
+        return (new Function('__fakeNode_system__', '__fakeNode_process__', `with(__fakeNode_system__.node.globals){return ${code};}`))(system, process);
     }
 }
 
@@ -239,23 +241,23 @@ export default function plugin<T extends System>(this: T, options: Options = {})
         transpilers,
         assumptions: options.assumptions ?? REASONABLE_ASSUMPTIONS,
     }
+    // @ts-ignore
+    globalThis.__fakeNode_system__ = this;
     if (IS_BROWSER) {
         let iframe = document.createElement('iframe');
         document.body.appendChild(iframe);
         iframe.style.display = 'none';
         out.window = iframe.contentWindow as Window;
         out.window.global = window;
-        out.window.__fakeNode_exports__ = undefined;
         out.window.__fakeNode_system__ = this;
         for (const global of WEB_ONLY_GLOBALS) {
             if (global in out.window) {
                 delete out.window[global];
             }
         }
-        out.globals = Object.create(null, Object.fromEntries(NON_DELETABLE_WEB_ONLY_GLOBALS.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
-    } else {
-        out.globals = Object.create(null, Object.fromEntries(NODE_ONLY_GLOBALS.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
     }
+    let toDelete = IS_BROWSER ? NON_DELETABLE_WEB_ONLY_GLOBALS : NODE_ONLY_GLOBALS;
+    out.globals = Object.create(null, Object.fromEntries(toDelete.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
     return Object.assign(this, {node: out as NodeSystem['node']});
 }
 plugin.id = 'node';

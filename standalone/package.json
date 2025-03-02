@@ -1,6 +1,6 @@
 {
   "name": "@fake-node/standalone",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "A fake version of Node that works in the browser. This is the standalone version, includable using script tags",
   "license": "MIT",
   "author": "speedydelete",
@@ -13,8 +13,9 @@
   "types": "./index.d.ts",
   "files": [
     "/dist",
-    "/index.ts",
-    "/index.d.ts"
+    "/src",
+    "/webpack.config.cjs",
+    "/test.html"
   ],
   "homepage": "https://github.com/speedydelete/fake-node",
   "repository": {

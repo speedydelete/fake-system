@@ -10,12 +10,10 @@
         <script>
 
 window.addEventListener('load', () => {
-    system.fs.write('/root/test.js', 'console.log("hi");');
+    system.fs.write('/root/test.js', 'console.log(require("fs").readFileSync("test.js").toString());');
     let session = system.login('root');
     session.throwUnintentionalCommandErrors = true;
-    let process = session.runBash('ls -l');
-    console.log(process.stderr);
-    console.log(process.stdout);
+    session.runBash('node test.js');
 });
 
         </script>
