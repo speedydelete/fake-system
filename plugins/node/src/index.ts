@@ -12,6 +12,7 @@ import * as module_buffer from './modules/buffer';
 import * as module_fs from './modules/fs';
 import {transpiler, REASONABLE_ASSUMPTIONS, type SourceMap} from './transpiler';
 import WEB_ONLY_GLOBALS from './web_only_globals.json';
+import NODE_ONLY_GLOBALS from './node_only_globals.json';
 
 
 type BaseProcessObject = typeof import ('./modules/process');
@@ -38,7 +39,6 @@ export interface Options {
 
 export interface NodeSystem extends System {
     node: {
-        window: Window;
         modules: Map<string, unknown>;
         errorCallbacks: (Function | undefined)[];
         isBrowser: boolean;
@@ -48,7 +48,15 @@ export interface NodeSystem extends System {
         fileExtensions: {[ext: string]: string};
         transpilers: Map<string, Transpiler>;
         assumptions: {[assumption: string]: boolean};
-    };
+    } & (
+        {
+            IS_BROWSER: false,
+            globals: {[key: string]: unknown},
+        } | {
+            IS_BROWSER: true,
+            window: Window,
+        }
+    );
 }
 
 
@@ -133,11 +141,15 @@ function run(system: NodeSystem, process: Process, code: string, filename: strin
         throw new TypeError(`no transpiler found matching ${type}`);
     }
     ({code} = transpiler(system, code, type, filename));
-    let elt = system.node.window.document.createElement('script');
-    elt.textContent = `__fakeNode_exports__=(()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports())()`;
-    system.node.window.document.body.appendChild(elt);
-    // @ts-ignore
-    return system.node.window.__fakeNode_exports__;
+    if (system.node.IS_BROWSER) {
+        let elt = system.node.window.document.createElement('script');
+        elt.textContent = `__fakeNode_exports__=(()=>{'use strict';var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();)()`;
+        system.node.window.document.body.appendChild(elt);
+        // @ts-ignore
+        return system.node.window.__fakeNode_exports__;
+    } else {
+        return (new Function('__fakeNode_system__', '__fakeNode_process__', `with(__fakeNode_system__.node.globals){return (()=>{'use strict';})();var __dirname=${JSON.stringify(process.cwd)};var __filename=${JSON.stringify(filename)}};var module={exports:{}};var exports=module.exports;var __fakeNode_process__=__fakeNode_system__.processes[${process.pid}];var require=(x)=>__fakeNode_system__.node.require(x,__fakeNode_process__);var process=__fakeNode_system__.node.getProcessObject(__fakeNode_process__);${code};return module.exports();}`))(system, process);
+    }
 }
 
 let node = command('node', ' Node.js is a set of libraries for JavaScript which allows it to be used outside of the browser. It is primarily focused on creating simple, easy to build network clients and servers.')
@@ -148,41 +160,41 @@ let node = command('node', ' Node.js is a set of libraries for JavaScript which 
     });
 
 
-export default function plugin<T extends System>(this: T, options: Options): T & NodeSystem {
+export default function plugin<T extends System>(this: T, options: Options = {}): T & NodeSystem {
     this.fs.addDevice('/usr/bin/node', {executor: node});
-    let window = document.createElement('iframe').contentWindow as Window;
-    for (const global of WEB_ONLY_GLOBALS) {
-        // @ts-ignore
-        delete this.window[global];
-    }
-    // @ts-ignore
-    window.global = window;
-    // @ts-ignore
-    window.__fakeNode_exports__ = undefined;
-    // @ts-ignore
-    window.__fakeNode_system__ = this;
     let transpilerList = [transpiler, ...(options.transpilers ?? [])]
     let transpilers = new Map<string, Transpiler>();
-    // @ts-ignore
     for (let transpiler of transpilerList.toReversed()) {
         for (let type of transpiler.types) {
             transpilers.set(type, transpiler);
         }
     }
-    return Object.assign(this, {
-        node: {
-            window,
-            modules: new Map(BUILTIN_MODULES),
-            errorCallbacks: [],
-            isBrowser: IS_BROWSER,
-            require: fakeRequire.bind(this as unknown as NodeSystem),
-            getProcessObject: getProcessObject.bind(this),
-            development: options.development ?? false,
-            fileExtensions: {...(options.fileExtensions ?? {}), ...DEFAULT_FILE_EXTENSIONS},
-            transpilers,
-            assumptions: options.assumptions ?? REASONABLE_ASSUMPTIONS,
-        },
-    });
+    let out: any = {
+        IS_BROWSER,
+        modules: new Map(BUILTIN_MODULES),
+        errorCallbacks: [],
+        isBrowser: IS_BROWSER,
+        require: fakeRequire.bind(this as unknown as NodeSystem),
+        getProcessObject: getProcessObject.bind(this),
+        development: options.development ?? false,
+        fileExtensions: {...(options.fileExtensions ?? {}), ...DEFAULT_FILE_EXTENSIONS},
+        transpilers,
+        assumptions: options.assumptions ?? REASONABLE_ASSUMPTIONS,
+    }
+    if (IS_BROWSER) {
+        out.window = document.createElement('iframe').contentWindow as Window;
+        out.window.global = window;
+        out.window.__fakeNode_exports__ = undefined;
+        out.window.__fakeNode_system__ = this;
+        for (const global of WEB_ONLY_GLOBALS) {
+            if (global in out.window) {
+                delete out.window[global];
+            }
+        }
+    } else {
+        out.globals = Object.create(null, Object.fromEntries(NODE_ONLY_GLOBALS.map(property => [property, {get() {throw new ReferenceError(`${property} is not defined`);}}])));
+    }
+    return Object.assign(this, {node: out as NodeSystem['node']});
 }
 plugin.id = 'node';
 plugin.requires = ['bash'];

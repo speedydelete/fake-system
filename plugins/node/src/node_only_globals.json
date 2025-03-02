@@ -1,0 +1,11 @@
+[
+    "__dirname",
+    "__filename",
+    "exports",
+    "global",
+    "module",
+    "navigator",
+    "process",
+    "require",
+    ""
+]

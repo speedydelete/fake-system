@@ -6,9 +6,8 @@
         "resolveJsonModule": true,
         "esModuleInterop": true,
         "module": "NodeNext",
-        "outDir": "lib",
+        "outDir": "./lib",
         "sourceMap": true
     },
-    "files": ["./src/index.ts"],
-    "exclude": ["node_modules"]
+    "files": ["./src/index.ts"]
 }

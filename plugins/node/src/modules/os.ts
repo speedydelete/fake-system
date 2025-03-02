@@ -1,6 +1,5 @@
 
 /// <reference path="../in_node.d.ts" />
-import type {NodeSystem} from '..';
 
 export const EOL = '\n';
 
@@ -238,20 +237,25 @@ export function totalmem(): number {
 }
 
 export function type(): string {
-    const data = (__fakeNode_system__ as NodeSystem).node.window.navigator.userAgent.slice('Mozilla/5.0 ('.length, navigator.userAgent.indexOf(')'));
-    if (data.includes('Windows NT')) {
-        return 'Windows_NT';
-    } else if (data.includes('Linux')) {
-        return 'Linux';
-    } else if (data.includes('Mac')) {
-        return 'Darwin';
+    if (__fakeNode_system__.node.IS_BROWSER) {
+        const data = __fakeNode_system__.node.window.navigator.userAgent.slice('Mozilla/5.0 ('.length, navigator.userAgent.indexOf(')'));
+        if (data.includes('Windows NT')) {
+            return 'Windows_NT';
+        } else if (data.includes('Linux')) {
+            return 'Linux';
+        } else if (data.includes('Mac')) {
+            return 'Darwin';
+        } else {
+            return 'unknown';
+        }
     } else {
-        return 'unknown';
+        // @ts-ignore
+        return require('node:os').type();
     }
 }
 
 export function uptime(): number {
-    return (__fakeNode_system__.node.window.performance.now() - __fakeNode_system__.node.window.performance.timeOrigin) / 1000;
+    return (performance.now() - performance.timeOrigin) / 1000;
 }
 
 export function userInfo(): {username: string, uid: number, gid: number, shell: string, homedir: string} {

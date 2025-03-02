@@ -1,9 +1,13 @@
 
 /// <reference path="../in_node.d.ts" />
-import {NodeSystem} from '..';
 
 export function abort(): void {
-    __fakeNode_system__.node.window.close();
+    if (__fakeNode_system__.node.IS_BROWSER) {
+        __fakeNode_system__.node.window.close();
+    } else {
+        // @ts-ignore
+        require('node:process').abort();
+    }
 }
 
 export const allowedNodeEnvironmentFlags = new Set<never>();
@@ -49,8 +53,8 @@ export function emitWarning(warning: string | Error, type_or_options: string | {
 }
 
 export function exit(code: number = 0): void {
-    window.console.log('Exit code', code);
-    window.close();
+    __fakeNode_process__.exitCode = code;
+    close();
 }
 
 export let exitCode = 0;
@@ -120,7 +124,7 @@ export function hasUncaughtExecptionCaptureCallback(): boolean {
 }
 
 export function hrtime(time?: [number, number]): [number, number] {
-    let value = window.performance.now();
+    let value = performance.now();
     if (time !== undefined) {
         value -= time[0] + time[1] / 1000000;
     }
@@ -128,7 +132,12 @@ export function hrtime(time?: [number, number]): [number, number] {
 }
 
 hrtime.bigint = function(): bigint {
-    return BigInt(window.performance.now());
+    if (__fakeNode_system__.node.IS_BROWSER) {
+        return BigInt(performance.now());
+    } else {
+        // @ts-ignore
+        return require('node:process').hrtime.bigint();
+    }
 }
 
 export function initgroups(user: string | number, extraGroup: string | number): void {
@@ -152,7 +161,7 @@ memoryUsage.rss = function(): number {
 }
 
 export function nextTick(callback: Function, ...args: any[]): void {
-    window.setTimeout(callback, 0, ...args);
+    setTimeout(callback, 0, ...args);
 }
 
 export const noDeprecation = false;
@@ -243,5 +252,5 @@ export function unref(maybeRefable: any): void {
 }
 
 export function uptime(): number {
-    return __fakeNode_system__.node.window.performance.now() / 1000;
+    return performance.now() / 1000;
 }

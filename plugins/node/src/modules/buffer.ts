@@ -4,4 +4,4 @@
 const Blob_ = Blob;
 export {Blob_ as Blob};
 
-export {Buffer, BufferEncoding} from '../../../src/fs'; // fake-system/fs
+export {Buffer, BufferEncoding} from 'fake-system/fs';

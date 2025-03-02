@@ -3,11 +3,11 @@
 import {type TypedArray} from './util';
 import {dirname, basename, resolve} from './path';
 import {Buffer, type BufferEncoding} from './buffer';
-import {constants, parsePathArg, Directory, FileSystem} from '../../../src/fs'; // fake-system/fs
-import type {PathArg, ModeArg, DataArg, TimeArg, Flag, Stats, BigIntStats, StatFs, BigIntStatFs} from '../../../src/fs'; // fake-system/fs
+import {constants, parsePathArg, Directory, FileSystem} from 'fake-system/fs';
+import type {PathArg, ModeArg, DataArg, TimeArg, Flag, Stats, BigIntStats, StatFs, BigIntStatFs} from 'fake-system/fs';
 
-export {constants} from '../../../src/fs'; // fake-system/fs
-export {Stats, BigIntStats, StatFs, BigIntStatFs} from '../../../src/fs'; // fake-system/fs
+export {constants} from 'fake-system/fs';
+export {Stats, BigIntStats, StatFs, BigIntStatFs} from 'fake-system/fs';
 
 
 // export function accessSync(path: PathArg, mode: number = constants.F_OK) {

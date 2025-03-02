@@ -1,11 +1,12 @@
 
-import {System} from './lib/index.js';
-import nodePlugin from 'plugins/node/lib/index.js';
+const {System} = require('.');
+const {default: nodePlugin} = require('./plugins/node');
 
 let system = new System();
 system.addPlugin(nodePlugin);
+system.fs.write('/root/test.js', 'console.log(\'hi\')\n');
 
-let {default: readline} = await import('node:readline/promises');
+let readline = require('node:readline/promises');
 let rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
