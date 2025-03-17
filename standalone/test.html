@@ -4,7 +4,8 @@
         <title>Test</title>
         <meta charset="utf-8" />
         <script src="dist/index.js"></script>
-        <script src="dist/node.js"></script>
+        <script src="dist/terminal.js"></script>
+        <script src="dist/window.js"></script>
     </head>
     <body>
         <script>
@@ -13,7 +14,17 @@ window.addEventListener('load', () => {
     system.fs.write('/root/test.js', 'console.log(require("fs").readFileSync("test.js").toString());');
     let session = system.login('root');
     session.throwUnintentionalCommandErrors = true;
-    session.runBash('node test.js');
+    document.body.appendChild(session.windowManager.elt);
+    let terminalWindow = session.windowManager.createWindow('Terminal', session.terminal.element);
+    session.terminal.listen();
+    session.terminal.element.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            queueMicrotask(() => {
+                session.runBash(session.terminal.stdin.data);
+                session.terminal.stdin.data = '';
+            });
+        }
+    })
 });
 
         </script>

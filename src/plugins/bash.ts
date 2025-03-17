@@ -192,7 +192,7 @@ export let defaultCommands: {[key: string]: (process: BashProcess, session: Bash
                     let [name, value] = arg.split('=');
                     session.aliases.set(name, value);
                 } else {
-                    process.stdout += `${arg}=${session.aliases.get(arg)}\n`;
+                    process.stdout.write(`${arg}=${session.aliases.get(arg)}\n`);
                 }
             }
         }
@@ -233,7 +233,7 @@ export let defaultCommands: {[key: string]: (process: BashProcess, session: Bash
     },
 
     pwd(process) {
-        process.stdout += process.cwd + '\n';
+        process.stdout.write(process.cwd + '\n');
     },
 
     source(process, session) {
@@ -257,7 +257,7 @@ export let defaultCommands: {[key: string]: (process: BashProcess, session: Bash
 
     '['(process, session) {
         if (process.argv[process.argv.length - 1] !== ']') {
-            process.stderr += '[: no matching ]\n';
+            process.stderr.write('[: no matching ]\n');
             process.exitCode = -1;
         } else {
             this.test(process, session);
@@ -372,7 +372,7 @@ export default function plugin<T extends System>(this: T): T & BashSystem {
                     try {
                         bash(command, process, this);
                     } catch (error) {
-                        process.stderr += `bash: error: ${error instanceof Error ? error.message : error}\n`;
+                        process.stderr.write(`bash: error: ${error instanceof Error ? error.message : error}\n`);
                     }
                     if (process.exitCode === undefined) {
                         this.run(process);

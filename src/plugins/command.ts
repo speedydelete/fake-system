@@ -102,7 +102,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
         return (process: Process, session: UserSession) =>  {
             let parsed = this.parse((process as BashProcess).argv, requiredArgs, optionalArgs, variadicArgs);
             if (typeof parsed === 'string') {
-                process.stdout += parsed + '\n';
+                process.stdout.write(parsed + '\n');
             } else {
                 let suppressed = false;
                 function error(message: string) {
@@ -116,19 +116,19 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                 try {
                     func({args: parsed, process: process as BashProcess, session: session as BashUserSession, system: session.system, error, suppressErrors});
                 } catch (error) {
-                    process.stderr += `${this.name}: error: `;
+                    process.stderr.write(`${this.name}: error: `);
                     if (error instanceof Error) {
                         if (error instanceof CommandError) {
-                            process.stderr += error.message;
+                            process.stderr.write(error.message);
                         } else {
                             if ((session as BashUserSession).throwUnintentionalCommandErrors) {
                                 throw error;
                             } else {
-                                process.stderr += error.stack ?? error;
+                                process.stderr.write(error.stack ?? String(error));
                             }
                         }
                     } else {
-                        process.stderr += error;
+                        process.stderr.write(String(error));
                     }
                 }
             }

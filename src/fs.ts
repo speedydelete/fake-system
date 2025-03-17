@@ -64,9 +64,6 @@ export type BufferEncoding = "ascii" | "utf8" | "utf-8" | "utf16le" | "ucs2" | "
 
 export class Buffer extends Uint8Array {
 
-    // @ts-ignore
-    [Symbol.toStringTag] = 'Buffer';
-
     toString(encoding: BufferEncoding = 'utf-8'): string {
         return (new TextDecoder(encoding)).decode(this);
     }

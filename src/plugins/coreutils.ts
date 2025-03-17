@@ -205,24 +205,24 @@ let ls = command('ls', 'List information about the FILES (the current directory 
             let userLength = Math.max(...data.map(row => row[2].length));
             let groupLength = Math.max(...data.map(row => row[3].length));
             let sizeLength = Math.max(...data.map(row => row[4].length));
-            process.stdout += data.map(row => `${row[0]} ${row[1].padStart(nlinkLength)} ${row[2].padStart(userLength)} ${row[3].padStart(groupLength)}  ${row[4].padStart(sizeLength)} ${row[5]}`).join('\n');
+            process.stdout.write(data.map(row => `${row[0]} ${row[1].padStart(nlinkLength)} ${row[2].padStart(userLength)} ${row[3].padStart(groupLength)}  ${row[4].padStart(sizeLength)} ${row[5]}`).join('\n'));
         } else {
             let maxPathLength = Math.max(...files.map(file => file[0].length - file[0].lastIndexOf('/'))) + 2;
             let pathsPerLine = Math.floor(80 / maxPathLength) || 1;
             let pathsOnLine = 0;
             for (let [path, file] of files) {
                 const color = getFileColor(file, lsColors);
-                process.stdout += `\x1b[${color}m${path.slice(path.lastIndexOf('/') + 1)}\x1b[0m`;
+                process.stdout.write(`\x1b[${color}m${path.slice(path.lastIndexOf('/') + 1)}\x1b[0m`);
                 pathsOnLine++;
                 if (pathsOnLine === pathsPerLine) {
-                    process.stdout += '\n';
+                    process.stdout.write('\n');
                     pathsOnLine = 0;
                 } else {
-                    process.stdout += '  ';
+                    process.stdout.write('  ');
                 }
             }
-            if (!process.stdout.endsWith('\n')) {
-                process.stdout += '\n';
+            if (!process.stdout.data.endsWith('\n')) {
+                process.stdout.write('\n');
             }
         }
     });
@@ -396,7 +396,7 @@ let cat = command('cat', 'Concatenate FILE(s) to standard output. With no FILE, 
                 out += system.fs.read(path);
             }
         }
-        process.stdout += out;
+        process.stdout.write(out);
     });
 
 

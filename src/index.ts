@@ -1,8 +1,11 @@
 
-import {normalize, resolve, RegularFile, Device, FileSystem} from './fs';
+import {FileSystem} from './fs';
 import {UserManager, type UserData} from './um';
 import bashPlugin from './plugins/bash';
 import coreutilsPlugin from './plugins/coreutils';
+import {Stream} from './stream';
+
+export {Stream} from './stream';
 
 
 export interface Process {
@@ -13,9 +16,9 @@ export interface Process {
     gid: number;
     cwd: string;
     umask: number;
-    stdin: string;
-    stdout: string;
-    stderr: string;
+    stdin: Stream;
+    stdout: Stream;
+    stderr: Stream;
     execFunc?: (this: Process) => void;
     exitCode?: number;
 }
@@ -151,9 +154,9 @@ export class UserSession implements UserData {
             gid: this.gid,
             cwd: this.cwd,
             umask: 0o022,
-            stdin: '',
-            stdout: '',
-            stderr: '',
+            stdin: new Stream(),
+            stdout: new Stream(),
+            stderr: new Stream(),
             exitCode: undefined,
         };
         this.system.processes.push(process);

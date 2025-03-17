@@ -1,0 +1,37 @@
+{
+    "name": "@fake-system/terminal",
+    "version": "0.1.0",
+    "description": "Terminal emulator plugin for fake-system.",
+    "license": "MIT",
+    "author": "speedydelete",
+    "type": "commonjs",
+    "main": "lib/index.js",
+    "exports": {
+        ".": "./lib/index.js"
+    },
+    "types": "lib/index.d.ts",
+    "files": [
+        "/index.ts",
+        "/transpiler.ts",
+        "/in_node.d.ts",
+        "/lib"
+    ],
+    "homepage": "https://github.com/speedydelete/fake-system",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/speedydelete/fake-system.git"
+    },
+    "bugs": {
+        "url": "https://github.com/speedydelete/fake-system/issues"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "build": "tsc"
+    },
+    "dependencies": {
+        "fake-system": "file:../.."
+    },
+    "devDependencies": {
+        "typescript": "^5.7.3"
+    }
+}
