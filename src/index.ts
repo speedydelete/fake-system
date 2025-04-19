@@ -6,7 +6,7 @@ import bashPlugin, {System} from './plugins/bash';
 import coreutilsPlugin from './plugins/coreutils';
 
 export {Stream} from './stream';
-export {System, UserSession, Process, CompleteProcess} from './plugins/bash';
+export {System, UserSession, Process, CompleteProcess, Plugin} from './plugins/bash';
 
 
 export interface BaseProcess {
@@ -28,7 +28,7 @@ export interface BaseCompleteProcess extends BaseProcess {
     exitCode: number;
 }
 
-export type Plugin = (<T extends BaseSystem>(this: T, options: unknown) => T) & {id: string, requires?: string[]};
+export type BasePlugin = (<T extends BaseSystem>(this: T, options: unknown) => T) & {id: string, requires?: string[]};
 
 
 export class BaseSystem {
@@ -96,7 +96,7 @@ export class BaseSystem {
         this.um = new UserManager(this.fs);
     }
 
-    addPlugin<T extends Plugin>(plugin: T, options?: Parameters<T>[0]): asserts this is ReturnType<T> {
+    addPlugin<T extends BasePlugin>(plugin: T, options?: Parameters<T>[0]): asserts this is ReturnType<T> {
         if (this.addedPluginIds.includes(plugin.id)) {
             throw new TypeError(`plugin ${plugin.id} is already added`);
         } else {
@@ -177,9 +177,16 @@ export class BaseUserSession implements UserData {
 }
 
 
-export function create(): System {
-    let out: BaseSystem = new BaseSystem();
+export function create(data?: Uint8Array): System {
+    let out: BaseSystem;
+    if (data) {
+        out = BaseSystem.import(data);
+    } else {
+        out = new BaseSystem();
+    }
     out.addPlugin(bashPlugin);
+    // @ts-ignore
+    out.addPlugin(coreutilsPlugin);
     return out;
 }
 

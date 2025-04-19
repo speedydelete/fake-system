@@ -22,8 +22,11 @@ export interface UserSession extends BaseUserSession {
 }
 
 export interface System extends BaseSystem {
-    login(user: string | number): UserSession & UserSession;
+    login(user: string | number): UserSession;
+    addPlugin<T extends Plugin>(plugin: T, options?: Parameters<T>[0]): asserts this is ReturnType<T>;
 }
+
+export type Plugin = (<T extends System>(this: T, options: unknown) => T) & {id: string, requires?: string[]};
 
 const DEFAULT_ENV = {
     PATH: '/usr/bin:/usr/local/bin:/bin',
@@ -389,6 +392,6 @@ export default function plugin<T extends BaseSystem>(this: T): T & System {
                 prevDir: out.homedir,
             }) as UserSession;
         }
-    });
+    }) as T & System;
 }
 plugin.id = 'bash';
