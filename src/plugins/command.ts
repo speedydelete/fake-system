@@ -1,6 +1,6 @@
+
 import {DeviceExecutor} from '../fs';
-import {System, Process, UserSession} from '../index';
-import {BashUserSession, BashProcess} from './bash';
+import {System, UserSession, Process} from './bash';
 
 
 export type RequiredArgument<Name extends string = string> = `${Name}`;
@@ -33,7 +33,7 @@ type CamelCase<S extends string> = S extends `-${infer Rest}` ? CamelCase<Rest> 
 
 export type ParsedArguments<Args extends ParsedArgument[], Opts extends ParsedOption[]> = {[Arg in Args[number] as Lowercase<Arg['name']>]: Arg extends ParsedRequiredArgument ? string : (Arg extends ParsedOptionalArgument ? string | undefined : (Arg extends ParsedVariadicArgument ? string[] : never))} & {[Opt in Opts[number] as CamelCase<Opt['name']>]: Opt extends ParsedBooleanOption ? boolean : (Opt extends ParsedOptionWithOptionalArgument ? string | true | undefined : (Opt extends ParsedOptionWithRequiredArgument ? string | undefined : (Opt['arg'] extends null ? boolean : string | undefined)))};
 
-export type CommandFunction<Args extends ParsedArgument[], Opts extends ParsedOption[]> = (options: {args: ParsedArguments<Args, Opts>, process: BashProcess, session: BashUserSession, system: System, error(message: string): void, suppressErrors(suppress?: boolean): void}) => void;
+export type CommandFunction<Args extends ParsedArgument[], Opts extends ParsedOption[]> = (options: {args: ParsedArguments<Args, Opts>, process: Process, session: UserSession, system: System, error(message: string): void, suppressErrors(suppress?: boolean): void}) => void;
 
 
 export class ArgumentParsingError<Args extends ParsedArgument[], Opts extends ParsedOption[]> extends Error {
@@ -87,9 +87,9 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
     }
 
     func(func: CommandFunction<Args, Opts>): DeviceExecutor {
-        let requiredArgs = [];
-        let optionalArgs = [];
-        let variadicArgs = [];
+        let requiredArgs: ParsedRequiredArgument[] = [];
+        let optionalArgs: ParsedOptionalArgument[] = [];
+        let variadicArgs: ParsedVariadicArgument[] = [];
         for (let arg of this.args) {
             if (arg.optional) {
                 optionalArgs.push(arg);
@@ -100,7 +100,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
             }
         }
         return (process: Process, session: UserSession) =>  {
-            let parsed = this.parse((process as BashProcess).argv, requiredArgs, optionalArgs, variadicArgs);
+            let parsed = this.parse(process.argv, requiredArgs, optionalArgs, variadicArgs);
             if (typeof parsed === 'string') {
                 process.stdout.write(parsed + '\n');
             } else {
@@ -114,14 +114,14 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
                     suppressed = suppress;
                 }
                 try {
-                    func({args: parsed, process: process as BashProcess, session: session as BashUserSession, system: session.system, error, suppressErrors});
+                    func({args: parsed, process: process, session: session, system: session.system as System, error, suppressErrors});
                 } catch (error) {
                     process.stderr.write(`${this.name}: error: `);
                     if (error instanceof Error) {
                         if (error instanceof CommandError) {
                             process.stderr.write(error.message);
                         } else {
-                            if ((session as BashUserSession).throwUnintentionalCommandErrors) {
+                            if (session.throwUnintentionalCommandErrors) {
                                 throw error;
                             } else {
                                 process.stderr.write(error.stack ?? String(error));
@@ -196,7 +196,7 @@ export class Command<Args extends ParsedArgument[] = [], Opts extends ParsedOpti
     parse(argv: string[], requiredArgs: ParsedRequiredArgument[], optionalArgs: ParsedOptionalArgument[], variadicArgs: ParsedVariadicArgument[]): ParsedArguments<Args, Opts> | string {
         argv = argv.slice(1);
         let out: {[key: string]: unknown} = {};
-        let posArgs = [];
+        let posArgs: string[] = [];
         for (let i = 0; i < argv.length; i++) {
             let arg = argv[i];
             if (arg.startsWith('-')) {

@@ -1,25 +1,28 @@
 
-import {normalize, resolve, type FileObject, RegularFile, Device} from '../fs';
-import type {System, UserSession, Process} from '../index';
+import {normalize, resolve, RegularFile, Device} from '../fs';
+import type {BaseSystem, BaseUserSession, BaseProcess, BaseCompleteProcess} from '../index';
 
 
-export interface BashProcess extends Process {
+export interface Process extends BaseProcess {
     env: {[key: string]: string};
     argv: string[];
 }
 
-export interface BashUserSession extends UserSession {
-    createProcess(...argv: string[]): BashProcess;
+export type CompleteProcess = Process & BaseCompleteProcess;
+
+export interface UserSession extends BaseUserSession {
+    system: System;
+    createProcess(...argv: string[]): Process;
     run(process: Process): void;
-    runBash(code: string): BashProcess;
+    runBash(code: string): Process;
     getPS1(): string;
     aliases: Map<string, string>;
     prevDir: string;
     throwUnintentionalCommandErrors?: boolean;
 }
 
-export interface BashSystem extends System {
-    login(user: string | number): UserSession & BashUserSession;
+export interface System extends BaseSystem {
+    login(user: string | number): UserSession & UserSession;
 }
 
 const DEFAULT_ENV = {
@@ -119,7 +122,7 @@ function tokenize(command: string): Word[] {
     return words;
 }
 
-function resolveAliases(words: Word[], process: Process, session: BashUserSession): Word[] {
+function resolveAliases(words: Word[], process: Process, session: UserSession): Word[] {
     if (words.length === 0) {
         return words;
     }
@@ -173,7 +176,7 @@ function substitutions(process: Process, words: Word[]): string[] {
 }
 
 
-export let defaultCommands: {[key: string]: (process: BashProcess, session: BashUserSession) => void} = {
+export let defaultCommands: {[key: string]: (process: Process, session: UserSession) => void} = {
 
     ':'() {},
 
@@ -267,7 +270,7 @@ export let defaultCommands: {[key: string]: (process: BashProcess, session: Bash
 };
 
 
-function bash(command: string, process: BashProcess, session: BashUserSession): void {
+function bash(command: string, process: Process, session: UserSession): void {
     let words = resolveAliases(tokenize(command), process, session);
     if (words[0].text in defaultCommands) {
         defaultCommands[words[0].text](process, session);
@@ -309,7 +312,7 @@ function bash(command: string, process: BashProcess, session: BashUserSession): 
 }
 
 
-function run(this: BashUserSession, process: BashProcess): void {
+function run(this: UserSession, process: Process): void {
     let argv0 = resolve(process.cwd, process.argv[0]);
     if (!this.system.fs.exists(argv0)) {
         let found = false;
@@ -349,25 +352,25 @@ function run(this: BashUserSession, process: BashProcess): void {
 }
 
 
-export default function plugin<T extends System>(this: T): T & BashSystem {
+export default function plugin<T extends BaseSystem>(this: T): T & System {
     this.fs.addDevice('/bin/bash', {executor: (process: Process, session: UserSession) => {
-        bash((process as BashProcess).argv.join(' '), process as BashProcess, session as BashUserSession)
+        bash((process as Process).argv.join(' '), process as Process, session as UserSession)
         if (process.exitCode === undefined) {
-            (session as BashUserSession).run(process);
+            (session as UserSession).run(process);
         }
     }});
     this.fs.link('/bin/sh', this.fs.get('/bin/bash'));
     let oldLogin = this.login.bind(this);
     return Object.assign(this, {
-        login(user: string | number): UserSession & BashUserSession {
+        login(user: string | number): UserSession {
             let out = oldLogin(user);
             let oldCreateProcess = out.createProcess.bind(out);
             return Object.assign(out, {
                 run: run,
-                createProcess(...argv: string[]): BashProcess {
+                createProcess(...argv: string[]): Process {
                     return Object.assign(oldCreateProcess(), {argv, env: DEFAULT_ENV});
                 },
-                runBash(this: BashUserSession, command: string): BashProcess {
+                runBash(this: UserSession, command: string): Process {
                     let process = this.createProcess();
                     try {
                         bash(command, process, this);
@@ -379,12 +382,12 @@ export default function plugin<T extends System>(this: T): T & BashSystem {
                     }
                     return process;
                 },
-                getPS1(this: BashUserSession): string {
+                getPS1(this: UserSession): string {
                     return `\x1b[01;32m${this.name}@${this.system.hostname}\x1b[0m:\x1b[01;34m${this.cwd.replace(new RegExp('^' + this.homedir), '~')}\x1b[0m${this.uid === 0 ? '#' : '$'} `;
                 },
                 aliases: new Map(),
                 prevDir: out.homedir,
-            });
+            }) as UserSession;
         }
     });
 }

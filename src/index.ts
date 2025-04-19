@@ -2,12 +2,15 @@
 import {FileSystem} from './fs';
 import {UserManager, type UserData} from './um';
 import {Stream} from './stream';
+import bashPlugin, {System} from './plugins/bash';
+import coreutilsPlugin from './plugins/coreutils';
 
 export {Stream} from './stream';
+export {System, UserSession, Process, CompleteProcess} from './plugins/bash';
 
 
-export interface Process {
-    system: System;
+export interface BaseProcess {
+    system: BaseSystem;
     pid: number;
     priority: number;
     uid: number;
@@ -17,22 +20,22 @@ export interface Process {
     stdin: Stream;
     stdout: Stream;
     stderr: Stream;
-    execFunc?: (this: Process) => void;
+    execFunc?: (this: BaseProcess) => void;
     exitCode?: number;
 }
 
-export interface CompleteProcess extends Process {
+export interface BaseCompleteProcess extends BaseProcess {
     exitCode: number;
 }
 
-export type Plugin = (<T extends System>(this: T, options: unknown) => T) & {id: string, requires?: string[]};
+export type Plugin = (<T extends BaseSystem>(this: T, options: unknown) => T) & {id: string, requires?: string[]};
 
 
-export class System {
+export class BaseSystem {
 
     fs: FileSystem;
     um: UserManager;
-    processes: Process[] = [];
+    processes: BaseProcess[] = [];
     addedPluginIds: string[] = [];
     hostname: string = 'fake-system';
 
@@ -109,16 +112,16 @@ export class System {
         }
     }
 
-    login(user: string | number): UserSession {
-        return new UserSession(this, user);
+    login(user: string | number): BaseUserSession {
+        return new BaseUserSession(this, user);
     }
 
     export(): Uint8Array {
         return this.fs.export();
     }
 
-    static import(data: Uint8Array): System {
-        let out = new System();
+    static import(data: Uint8Array): BaseSystem {
+        let out = new BaseSystem();
         out.fs = FileSystem.import(data);
         return out;
     }
@@ -126,9 +129,9 @@ export class System {
 }
 
 
-export class UserSession implements UserData {
+export class BaseUserSession implements UserData {
 
-    system: System;
+    system: BaseSystem;
     name: string;
     uid: number;
     gid: number;
@@ -137,7 +140,7 @@ export class UserSession implements UserData {
     shell: string;
     cwd: string;
 
-    constructor(system: System, user: string | number) {
+    constructor(system: BaseSystem, user: string | number) {
         this.system = system;
         let data = system.um.getUserData(user);
         this.name = data.name;
@@ -149,7 +152,7 @@ export class UserSession implements UserData {
         this.cwd = this.homedir;
     }
 
-    createProcess(): Process {
+    createProcess(): BaseProcess {
         let process = {
             system: this.system,
             pid: this.system.processes.length,
@@ -167,13 +170,17 @@ export class UserSession implements UserData {
         return process;
     }
 
-    run(process: Process): void {
+    run(process: BaseProcess): void {
         throw new TypeError('cannot run processes');
     }
 
 }
 
 
-export function logProcess(process: Process): void {
-
+export function create(): System {
+    let out: BaseSystem = new BaseSystem();
+    out.addPlugin(bashPlugin);
+    return out;
 }
+
+export default create;

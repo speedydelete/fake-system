@@ -1,5 +1,5 @@
 
-import type {Process, UserSession} from './index';
+import type {Process, UserSession} from './plugins/bash';
 
 
 export const F_OK = 0;

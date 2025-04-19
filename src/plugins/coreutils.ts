@@ -1,6 +1,6 @@
 
 import {constants, join, FileObject, RegularFile, Directory, SymbolicLink, Device} from '../fs';
-import type {System} from '../index';
+import type {System} from './bash';
 import {command, CommandError} from './command';
 
 
