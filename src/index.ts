@@ -119,6 +119,16 @@ export class System {
         return new UserSession(this, user);
     }
 
+    export(): Uint8Array {
+        return this.fs.export();
+    }
+
+    static import(data: Uint8Array): System {
+        let out = new System();
+        out.fs = FileSystem.import(data);
+        return out;
+    }
+
 }
 
 

@@ -987,4 +987,12 @@ export class FileSystem extends Directory {
         }
     }
 
+    export(): Uint8Array {
+        return this.fullExport();
+    }
+
+    static import(data: Uint8Array): FileSystem {
+        return new FileSystem(Directory.fullImport(data).files);
+    }
+
 }
