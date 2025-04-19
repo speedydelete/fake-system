@@ -1,8 +1,6 @@
 
 import {FileSystem} from './fs';
 import {UserManager, type UserData} from './um';
-import bashPlugin from './plugins/bash';
-import coreutilsPlugin from './plugins/coreutils';
 import {Stream} from './stream';
 
 export {Stream} from './stream';
@@ -38,7 +36,7 @@ export class System {
     addedPluginIds: string[] = [];
     hostname: string = 'fake-system';
 
-    constructor(addDefaultPlugins: boolean = true) {
+    constructor() {
         this.fs = new FileSystem();
         this.fs.mkdir('/bin');
         this.fs.mkdir('/boot');
@@ -93,10 +91,6 @@ export class System {
         this.fs.mkdir('/var/spool');
         this.fs.mkdir('/var/tmp');
         this.um = new UserManager(this.fs);
-        if (addDefaultPlugins) {
-            this.addPlugin(bashPlugin);
-            this.addPlugin(coreutilsPlugin);
-        }
     }
 
     addPlugin<T extends Plugin>(plugin: T, options?: Parameters<T>[0]): asserts this is ReturnType<T> {
