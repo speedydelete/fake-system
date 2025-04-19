@@ -5,7 +5,9 @@ import {Stream} from './stream';
 import bashPlugin, {System} from './plugins/bash';
 import coreutilsPlugin from './plugins/coreutils';
 
+export {FileSystem} from './fs';
 export {Stream} from './stream';
+export {UserManager} from './um';
 export {System, UserSession, Process, CompleteProcess, Plugin} from './plugins/bash';
 
 
