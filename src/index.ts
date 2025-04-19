@@ -5,10 +5,10 @@ import {Stream} from './stream';
 import bashPlugin, {System} from './plugins/bash';
 import coreutilsPlugin from './plugins/coreutils';
 
-export {FileSystem} from './fs';
-export {Stream} from './stream';
-export {UserManager} from './um';
-export {System, UserSession, Process, CompleteProcess, Plugin} from './plugins/bash';
+export * from './fs';
+export * from './stream';
+export * from './um';
+export * from './plugins/bash';
 
 
 export interface BaseProcess {
