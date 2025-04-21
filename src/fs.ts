@@ -809,7 +809,11 @@ export class Directory extends FileObject {
 
     unlink(path: PathArg): FileObject {
         let parsed = parsePathArg(path, this.absPath);
-        let file = this.files.get(parsePathArg(parsed, this.absPath));
+        if (!parsed.startsWith(this.absPath)) {
+            return this.rootDir.unlink(parsed.slice(1));
+        }
+        parsed = parsed.slice(this.absPath.length);
+        let file = this.files.get(parsed);
         if (file === undefined) {
             throw new TypeError(`${path} does not exist`);
         }
@@ -824,21 +828,25 @@ export class Directory extends FileObject {
 
     mkdir(path: PathArg, recursive: boolean = false, mode: ModeArg = 0o7770): Directory {
         let parsed = parsePathArg(path, this.absPath);
+        if (!parsed.startsWith(this.absPath)) {
+            return this.rootDir.mkdir(parsed.slice(1));
+        }
+        parsed = parsed.slice(this.absPath.length);
         if (recursive) {
             let segments = parsed.split('/');
             let file: Directory = this;
-            for (let i = 0; i < segments.length; i++) {
-                let segment = segments[i];
-                if (file.exists(segment)) {
-                    throw new TypeError(`cannot create ${path}: ${segments.slice(0, i).join('/')} exists`);
+            for (let segment of segments) {
+                if (!file.exists(segment)) {
+                    file = file.mkdir(segment);
+                } else {
+                    file = file.getDir(segment);
                 }
-                file = file.mkdir(path);
             }
             return file;
         } else {
             let file = new Directory(this.rootDir, new Map(), {uid: this.uid, gid: this.gid, mode: parseModeArg(mode)});
             file.absPath = join(this.absPath, parsed) + '/';
-            this.link(parsed.slice(1), file);
+            this.link(parsed, file);
             return file;
         }
     }
