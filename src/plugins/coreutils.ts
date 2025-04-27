@@ -191,7 +191,7 @@ let ls = command('ls', 'List information about the FILES (the current directory 
                         (fileMode & constants.S_IXOTH ? 'x' : '-');
                 let user = system.um.getUserData(file.uid).name;
                 let group = system.um.getGroupData(file.uid).name;
-                let mtime = (new Date(Number(file.mtime / 1000000n)));
+                let mtime = new Date(file.mtime * 1000);
                 let mtimeString = `${MONTHS[mtime.getMonth() - 1]} ${mtime.getDay().toString().padStart(2, '0')} ${mtime.getHours().toString().padStart(2, '0')}:${mtime.getMinutes().toString().padStart(2, '0')}`;
                 const color = getFileColor(file, lsColors);
                 path = `\x1b[${color}m${path.slice(path.lastIndexOf('/') + 1)}\x1b[00m`;
