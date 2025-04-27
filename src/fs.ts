@@ -151,11 +151,11 @@ export function parseFlag(flag: Flag): number {
 
 export type TimeArg = number | string | bigint | Date;
 
-export function parseTimeArg(time: TimeArg): bigint {
-    if (typeof time === 'bigint') {
+export function parseTimeArg(time: TimeArg): number {
+    if (typeof time === 'number') {
         return time;
-    } else if (typeof time === 'number') {
-        return BigInt(time * 1000000000);
+    } else if (typeof time === 'bigint') {
+        return Number(time);
     } else if (typeof time === 'string') {
         let timestamp = Date.parse(time);
         if (Number.isNaN(timestamp)) {
@@ -163,13 +163,13 @@ export function parseTimeArg(time: TimeArg): bigint {
             if (Number.isNaN(timestamp)) {
                 throw new TypeError(`invalid time argument ${time}`);
             } else {
-                return BigInt(timestamp * 1000000);
+                return timestamp / 1000;
             }
         } else {
-            return BigInt(timestamp * 1000000);
+            return timestamp / 1000;
         }
     } else if (time instanceof Date) {
-        return BigInt(time.valueOf() * 1000000);
+        return time.valueOf() / 1000;
     } else {
         throw new TypeError(`invalid time value: ${time}`);
     }
@@ -251,81 +251,6 @@ abstract class BaseStats {
 
 }
 
-export class Stats extends BaseStats {
-
-    dev: number = -1;
-    ino: number = -1;
-    mode: number = -1;
-    nlink: number = -1;
-    uid: number = -1;
-    gid: number = -1;
-    rdev: number = -1;
-    size: number = -1;
-    blksize: number = -1;
-    blocks: number = -1;
-    atimeMs: number = -1;
-    mtimeMs: number = -1;
-    ctimeMs: number = -1;
-    birthtimeMs: number = -1;
-    atime: Date = new Date(0);
-    mtime: Date = new Date(0);
-    ctime: Date = new Date(0);
-    birthtime: Date = new Date(0);
-
-}
-
-export class BigIntStats extends BaseStats {
-
-    dev: bigint = -1n;
-    ino: bigint = -1n;
-    mode: bigint = -1n;
-    nlink: bigint = -1n;
-    uid: bigint = -1n;
-    gid: bigint = -1n;
-    rdev: bigint = -1n;
-    size: bigint = -1n;
-    blksize: bigint = -1n;
-    blocks: bigint = -1n;
-    atimeMs: bigint = -1n;
-    mtimeMs: bigint = -1n;
-    ctimeMs: bigint = -1n;
-    birthtimeMs: bigint = -1n;
-    atimeNs: bigint = -1n;
-    mtimeNs: bigint = -1n;
-    ctimeNs: bigint = -1n;
-    birthtimeNs: bigint = -1n;
-    atime: Date = new Date(0);
-    mtime: Date = new Date(0);
-    ctime: Date = new Date(0);
-    birthtime: Date = new Date(0);
-
-}
-
-
-export class StatFs {
-
-    bavail: number = -1;
-    bfree: number = -1;
-    blocks: number = -1;
-    bsize: number = -1;
-    ffree: number = -1;
-    files: number = -1;
-    type: number = -1;
-
-}
-
-export class BigIntStatFs {
-
-    bavail: bigint = -1n;
-    bfree: bigint = -1n;
-    blocks: bigint = -1n;
-    bsize: bigint = -1n;
-    ffree: bigint = -1n;
-    files: bigint = -1n;
-    type: bigint = -1n;
-
-}
-
 
 export type ExportFormatVersion = 1;
 export const CURRENT_EXPORT_FORMAT_VERSION: ExportFormatVersion = 1;
@@ -341,10 +266,10 @@ export interface FileMetadata {
     uid: number;
     gid: number;
     size: number;
-    birthtime: bigint;
-    atime: bigint;
-    mtime: bigint;
-    ctime: bigint;
+    birthtime: number;
+    atime: number;
+    mtime: number;
+    ctime: number;
 }
 
 export class FileObject implements FileMetadata {
@@ -353,32 +278,32 @@ export class FileObject implements FileMetadata {
     nlink: number = 0;
     uid: number;
     gid: number;
-    birthtime: bigint;
-    atime: bigint;
-    mtime: bigint;
-    ctime: bigint;
+    birthtime: number;
+    atime: number;
+    mtime: number;
+    ctime: number;
     rdev: number = -1;
 
     constructor({mode, uid, gid}: FileParams) {
         this.mode = mode ?? 0o6440;
         this.uid = uid;
         this.gid = gid;;
-        this.birthtime = BigInt(Math.round(performance.now() * 1e9));
+        this.birthtime = Math.round(performance.now() / 1000);
         this.atime = this.birthtime;
         this.mtime = this.birthtime;
         this.ctime = this.birthtime;
     }
 
     setAtime() {
-        this.atime = BigInt(Math.round(performance.now() * 1e9));
+        this.atime = Math.round(performance.now() / 1000);
     }
 
     setMtime() {
-        this.mtime = BigInt(Math.round(performance.now() * 1e9));
+        this.mtime = Math.round(performance.now() / 1000);
     }
 
     setCtime() {
-        this.ctime = BigInt(Math.round(performance.now() * 1e9));
+        this.ctime = Math.round(performance.now() / 1000);
     }
 
     chmod(mode: string | number): void {
@@ -415,58 +340,6 @@ export class FileObject implements FileMetadata {
         }
     }
 
-    stat(bigint?: false): Stats;
-    stat(bigint: true): BigIntStats;
-    stat(bigint: boolean = false): Stats | BigIntStats {
-        if (bigint) {
-            let out = new BigIntStats();
-            out.dev = 0n;
-            out.ino = 0n;
-            out.mode = BigInt(this.mode);
-            out.nlink = BigInt(this.nlink);
-            out.uid = BigInt(this.uid);
-            out.gid = BigInt(this.gid);
-            out.rdev = BigInt(this.rdev);
-            out.size = BigInt(this.size);
-            out.blksize = 4096n;
-            out.blocks = BigInt(Math.ceil(this.size / 4096));
-            out.atimeMs = this.atime / 1000000n;
-            out.mtimeMs = this.mtime / 1000000n;
-            out.ctimeMs = this.ctime / 1000000n;
-            out.birthtimeMs = this.birthtime / 1000000n;
-            out.atimeNs = this.atime;
-            out.mtimeNs = this.mtime;
-            out.ctimeNs = this.ctime;
-            out.birthtimeNs = this.birthtime;
-            out.atime = new Date(Number(this.atime / 1000000n));
-            out.mtime = new Date(Number(this.mtime / 1000000n));
-            out.ctime = new Date(Number(this.ctime / 1000000n));
-            out.birthtime = new Date(Number(this.birthtime / 1000000n));
-            return out;
-        } else {
-            let out = new Stats();
-            out.dev = 0;
-            out.ino = 0;
-            out.mode = this.mode;
-            out.nlink = this.nlink;
-            out.uid = this.uid;
-            out.gid = this.gid;
-            out.rdev = this.rdev;
-            out.size = this.size;
-            out.blksize = 4096;
-            out.blocks = Math.ceil(this.size / 4096);
-            out.atimeMs = Number(this.atime / 1000000n);
-            out.mtimeMs = Number(this.mtime / 1000000n);
-            out.ctimeMs = Number(this.ctime / 1000000n);
-            out.birthtimeMs = Number(this.birthtime / 1000000n);
-            out.atime = new Date(Number(this.atime / 1000000n));
-            out.mtime = new Date(Number(this.mtime / 1000000n));
-            out.ctime = new Date(Number(this.ctime / 1000000n));
-            out.birthtime = new Date(Number(this.birthtime / 1000000n));
-            return out;
-        }
-    }
-
     _export(): Uint8Array {
         let buffer = new ArrayBuffer(10);
         let view = new DataView(buffer);
@@ -484,10 +357,10 @@ export class FileObject implements FileMetadata {
             uid: view.getUint16(2, true),
             gid: view.getUint16(4, true),
             size: view.getUint32(6, true),
-            birthtime: 0n,
-            atime: 0n,
-            mtime: 0n,
-            ctime: 0n,
+            birthtime: 0,
+            atime: 0,
+            mtime: 0,
+            ctime: 0,
         };
     }
 
@@ -967,32 +840,6 @@ export class FileSystem extends Directory {
 
     open(path: PathArg, flags: Flag, mode: ModeArg = 'r'): number {
         return this.fileDescriptors.push(this.get(path));
-    }
-
-    statfs(bigint?: false): StatFs;
-    statfs(bigint: true): BigIntStatFs;
-    statfs(bigint?: boolean): StatFs | BigIntStatFs {
-        if (bigint) {
-            let out = new BigIntStatFs();
-            out.bavail = -1n;
-            out.bfree = -1n;
-            out.blocks = -1n;
-            out.bsize = -1n;
-            out.ffree = -1n;
-            out.files = BigInt(this.recursiveSize);
-            out.type = 61267n;
-            return out;
-        } else {
-            let out = new StatFs();
-            out.bavail = Infinity;
-            out.bfree = Infinity;
-            out.blocks = Infinity;
-            out.bsize = Infinity;
-            out.ffree = Infinity;
-            out.files = this.recursiveSize;
-            out.type = 61267;
-            return out;
-        }
     }
 
     export(): Uint8Array {
